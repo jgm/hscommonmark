@@ -28,5 +28,7 @@ main = defaultMain $ testGroup "CommonMark tests" $
             ,Token (1,3) (TSym '?')
             ,Token (1,4) (TSym '@')
             ,Token (1,5) (TSym '=')]]
+     , testCase "lexer handles empty input" $
+          tokenize "" @=? []
       ]
     ]
