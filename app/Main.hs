@@ -1,6 +1,6 @@
 module Main where
 
-import Lib
+import CommonMark
 
 main :: IO ()
-main = someFunc
+main = print "TODO"
