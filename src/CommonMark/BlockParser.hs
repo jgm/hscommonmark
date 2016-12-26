@@ -68,14 +68,9 @@ matchMarker treepos line = do
   case blockType block of
        BDocument      -> return line
        BBlockQuote    ->
-         case line of
-              (Token _ (TSpaces n) : Token _ (TSym '>') : xs)
-                | n < 4 -> return (removeOneLeadingSpace xs)
-              (Token _ (TSym '>') : xs) ->
-                return (removeOneLeadingSpace xs)
-              (Token _ TTab : Token _ (TSym '>') : xs) ->
-                return (removeOneLeadingSpace xs)
-              _ -> mzero
+         case removeBlockQuoteStart line of
+              Just (ds, rest) -> return rest
+              Nothing -> mzero
        BList          -> return line
        BItem          -> undefined  -- TODO
        BParagraph     -> do
@@ -95,16 +90,27 @@ matchMarker treepos line = do
        BHtmlBlock     -> undefined  -- TODO
        BThematicBreak -> mzero
 
-removeOneLeadingSpace :: Line -> Line
-removeOneLeadingSpace (Token (l,c) (TSpaces n) : xs)
-  | n > 1 = Token (l,c+1) (TSpaces (n - 1)) : xs
-  | otherwise = xs
-removeOneLeadingSpace (Token (l,c) TTab : xs) =
+removeBlockQuoteStart :: [Token] -> Maybe ([Token], [Token])
+removeBlockQuoteStart ts = removeOneLeadingSpace <$>
+  case ts of
+       (Token p1 (TSym '>') : xs) ->
+         return ([Token p1 (TSym '>')], xs)
+       (Token p1 (TSpaces n) : Token p2 (TSym '>') : xs)
+         | n < 4 -> return ([Token p1 (TSpaces n), Token p2 (TSym '>')], xs)
+       _ -> mzero
+
+removeOneLeadingSpace :: ([Token], [Token]) -> ([Token], [Token])
+removeOneLeadingSpace (ts, Token (l,c) (TSpaces n) : xs)
+  | n > 1 = (ts ++ [Token (l,c) (TSpaces 1)],
+             Token (l,c+1) (TSpaces (n - 1)) : xs)
+  | otherwise = (ts, xs)
+removeOneLeadingSpace (ts, Token (l,c) TTab : xs) =
   let remaining = 4 - (c `mod` 4)
   in  if remaining > 1
-         then Token (l,c+1) (TSpaces (remaining - 1)) : xs
-         else xs
-removeOneLeadingSpace line = line
+         then (ts ++ [Token (l,c) (TSpaces 1)],
+               Token (l,c+1) (TSpaces (remaining - 1)) : xs)
+         else (ts, xs)
+removeOneLeadingSpace (ts, xs) = (ts, xs)
 
 isBlank :: Line -> Bool
 isBlank toks = all isBlankTok toks
