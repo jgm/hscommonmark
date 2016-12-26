@@ -1,9 +1,12 @@
 module CommonMark.BlockParser ()
 where
-import CommonMark.Types (Line, Token(..))
+import CommonMark.Types (Line, Token(..), Tok(..))
 import CommonMark.Lexer (tokenize)
+import Control.Monad
 import Data.Tree.Zipper
 import Data.Tree
+import Data.Text (Text)
+import qualified Data.Text as Text
 
 type BlockTree = TreePos Full Block
 
@@ -19,7 +22,8 @@ data BlockType = BDocument
                | BItem
                | BParagraph
                | BHeading
-               | BCodeBlock
+               | BCodeBlock { codeIndented   :: Bool
+                            , codeInfoString :: Text }
                | BHtmlBlock
                | BThematicBreak
   deriving (Eq, Show)
@@ -48,19 +52,59 @@ analyzeLine (tp:tps) line =
 analyzeLine [] line = error "analyzeLine [] - should not happen"
 
 matchMarker :: BlockTree -> Line -> Maybe Line
-matchMarker treepos line =
+matchMarker treepos line = do
+  let tree' = tree treepos
+      block = rootLabel tree'
   case blockType block of
-       BDocument      -> Just line
-       BBlockQuote    -> Nothing
-       BList          -> Nothing
-       BItem          -> Nothing
-       BParagraph     -> Nothing
-       BHeading       -> Nothing
-       BCodeBlock     -> Nothing
-       BHtmlBlock     -> Nothing
-       BThematicBreak -> Nothing
-  where tree' = tree treepos
-        block = rootLabel tree'
+       BDocument      -> return line
+       BBlockQuote    ->
+         case line of
+              (Token _ (TSpaces n) : Token _ (TSym '>') : xs)
+                | n < 4 -> return (removeOneLeadingSpace xs)
+              (Token _ (TSym '>') : xs) ->
+                return (removeOneLeadingSpace xs)
+              (Token _ TTab : Token _ (TSym '>') : xs) ->
+                return (removeOneLeadingSpace xs)
+              _ -> mzero
+       BList          -> return line
+       BItem          -> undefined  -- TODO
+       BParagraph     -> do
+         guard (not (isBlank line))
+         return line
+       BHeading       -> mzero
+       BCodeBlock { codeIndented = indented }
+         | indented   ->
+             case line of
+                 (Token _ TTab : xs) -> return xs
+                 (Token (l,c) (TSpaces n) : xs)
+                   | n > 4 -> return (Token (l,c+4) (TSpaces (n - 4)) : xs)
+                   | n == 4 -> return xs
+                   | otherwise -> mzero
+                 _  -> mzero
+         | otherwise -> return line
+       BHtmlBlock     -> undefined  -- TODO
+       BThematicBreak -> mzero
+
+removeOneLeadingSpace :: Line -> Line
+removeOneLeadingSpace (Token (l,c) (TSpaces n) : xs)
+  | n > 1 = Token (l,c+1) (TSpaces (n - 1)) : xs
+  | otherwise = xs
+removeOneLeadingSpace (Token (l,c) TTab : xs) =
+  let remaining = 4 - (c `mod` 4)
+  in  if remaining > 1
+         then Token (l,c+1) (TSpaces (remaining - 1)) : xs
+         else xs
+removeOneLeadingSpace line = line
+
+isBlank :: Line -> Bool
+isBlank toks = all isBlankTok toks
+
+isBlankTok :: Token -> Bool
+isBlankTok (Token _ t) =
+  case t of
+       TSpaces _ -> True
+       TTab      -> True
+       _         -> False
 
 ancestors :: BlockTree -> [BlockTree]
 ancestors treepos =
@@ -68,6 +112,7 @@ ancestors treepos =
         Nothing   -> [treepos]
         Just tp   -> tp : ancestors tp
 
+-- TODO remove:
 test :: BlockTree
 test = fromTree $
   Node (Block BDocument [] []) [
