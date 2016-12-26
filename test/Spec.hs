@@ -44,8 +44,20 @@ main = defaultMain $ testGroup "CommonMark tests" $
       ]
     , testGroup "gobbleSpaces tests" [
         testCase "gobbleSpaces returns Nothing when not enough spaces" $
-          gobbleSpaces 2 [Token (1,0) TSpace, Token (1,0) (TSym '$')] @?=
+          gobbleSpaces 2 [Token (1,0) TSpace, Token (1,1) (TSym '$')] @?=
           Nothing
+      , testCase "gobbleSpaces returns Just when enough spaces" $
+          gobbleSpaces 2 [Token (1,0) TSpace, Token (1,1) TSpace,
+                            Token (1,2) (TSym '$')] @?=
+          Just [Token (1,2) (TSym '$')]
+      , testCase "gobbleSpaces returns Just when more spaces" $
+          gobbleSpaces 1 [Token (1,0) TSpace, Token (1,1) TSpace,
+                            Token (1,2) (TSym '$')] @?=
+          Just [Token (1,1) TSpace, Token (1,2) (TSym '$')]
+      , testCase "gobbleSpaces handles tab" $
+          gobbleSpaces 2 [Token (1,0) TSpace, Token (1,1) TTab,
+             Token (1,4) (TSym '$')] @?=
+          Just [Token (1,2) TSpace, Token (1,3) TSpace, Token (1,4) (TSym '$')]
       ]
     , testGroup "analyzeLine tests" [
         testCase "block quote starts 1" $

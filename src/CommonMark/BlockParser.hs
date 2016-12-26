@@ -96,7 +96,7 @@ gobbleSpaces n (Token (ln,col) TTab : xs) =
                  | remaining == n -> Just xs
                  | remaining > n  -> gobbleSpaces n (newspaces ++ xs)
                      where newspaces = map (\c -> Token (ln,c) TSpace)
-                                        [col..(col + remaining)]
+                                        [col..(col + remaining - 1)]
 gobbleSpaces n _ = Nothing
 
 skipSpaces :: [Token] -> [Token]
