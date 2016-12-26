@@ -42,6 +42,11 @@ main = defaultMain $ testGroup "CommonMark tests" $
       , testProperty "tokenToText round-trip" $
           \x -> (mconcat . map tokenToText . tokenizeLine 1) x == x
       ]
+    , testGroup "gobbleSpaces tests" [
+        testCase "gobbleSpaces returns Nothing when not enough spaces" $
+          gobbleSpaces 2 [Token (1,0) TSpace, Token (1,0) (TSym '$')] @?=
+          Nothing
+      ]
     , testGroup "analyzeLine tests" [
         testCase "block quote starts 1" $
           analyzeLine [fromTree t4, fromTree t3, fromTree t2, fromTree t1]

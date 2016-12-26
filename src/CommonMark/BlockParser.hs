@@ -2,6 +2,7 @@ module CommonMark.BlockParser (
     BlockTree
   , Block(..)
   , BlockType(..)
+  , gobbleSpaces
   , parseBlocks
   , parseLine
   , analyzeLine
@@ -78,12 +79,30 @@ matchMarker treepos line = do
          return line
        BHeading       -> mzero
        BCodeBlock { codeIndented = indented }
-         | indented   ->
-             case line of
-                 _  -> undefined   -- TODO
+         | indented  -> case gobbleSpaces 4 line of
+                             Nothing  -> mzero
+                             Just line' -> return line'
          | otherwise -> return line
        BHtmlBlock     -> undefined  -- TODO
        BThematicBreak -> mzero
+
+gobbleSpaces :: Int -> [Token] -> Maybe [Token]
+gobbleSpaces 0 ts = Just ts
+gobbleSpaces n (Token _ TSpace : xs) =
+  gobbleSpaces (n - 1) xs
+gobbleSpaces n (Token (ln,col) TTab : xs) =
+  case 4 - (col `mod` 4) of
+       remaining | remaining < n  -> gobbleSpaces (n - remaining) xs
+                 | remaining == n -> Just xs
+                 | remaining > n  -> gobbleSpaces n (newspaces ++ xs)
+                     where newspaces = map (\c -> Token (ln,c) TSpace)
+                                        [col..(col + remaining)]
+gobbleSpaces n _ = Nothing
+
+skipSpaces :: [Token] -> [Token]
+skipSpaces (Token _ TSpace : xs) = skipSpaces xs
+skipSpaces (Token _ TTab : xs) = skipSpaces xs
+skipSpaces xs = xs
 
 removeBlockQuoteStart :: [Token] -> Maybe ([Token], [Token])
 removeBlockQuoteStart ts = removeOneLeadingSpace <$>

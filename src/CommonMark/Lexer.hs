@@ -29,12 +29,15 @@ getToken curline curcol inp =
             ' ' ->  (Token pos TSpace, rest, curcol + 1)
             '\t' -> let increment = 4 - curcol `mod` 4
                     in  (Token pos TTab, rest, curcol + increment)
-            '*' ->  let numstars = maybe 1 (1 +) (Text.findIndex (/='*') rest)
-                    in  (Token pos (TAsterisks numstars), rest,
-                          curcol + numstars)
-            '_' ->  let numchars = maybe 1 (1 +) (Text.findIndex (/='*') rest)
-                    in  (Token pos (TUnderscores numchars), rest,
-                          curcol + numchars)
+            '*' ->  let n = maybe 0 id (Text.findIndex (/='*') rest)
+                    in  (Token pos (TAsterisks (n+1)), Text.drop n rest,
+                           curcol + n + 1)
+            '_' ->  let n = maybe 0 id (Text.findIndex (/='_') rest)
+                    in  (Token pos (TUnderscores (n+1)), Text.drop n rest,
+                          curcol + n + 1)
+            '`' ->  let n = maybe 0 id (Text.findIndex (/='`') rest)
+                    in  (Token pos (TBackticks (n+1)), Text.drop n rest,
+                          curcol + n + 1)
             '\\' -> (Token pos TBackslash, rest, curcol + 1)
             '[' ->  (Token pos TOpenBracket, rest, curcol + 1)
             ']' ->  (Token pos TCloseBracket, rest, curcol + 1)
@@ -44,8 +47,8 @@ getToken curline curcol inp =
             '>' ->  (Token pos TCloseAngle, rest, curcol + 1)
             _ | isAlphaNum c ->
                     case Text.span isAlphaNum inp of
-                         (cs, rest) ->
+                         (cs, rest') ->
                             let numchars = Text.length cs
-                            in  (Token pos (TStr cs), rest, curcol + numchars)
+                            in  (Token pos (TStr cs), rest', curcol + numchars)
               | otherwise -> (Token pos (TSym c), rest, curcol + 1)
 
