@@ -1,4 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE DeriveGeneric #-}
 module CommonMark.Types (
     Token(..)
   , tokenToText
@@ -7,9 +9,11 @@ module CommonMark.Types (
   , Line ) where
 import Data.Text (Text)
 import qualified Data.Text as Text
+import Data.Generics (Data, Typeable)
+import GHC.Generics (Generic)
 
 data Token = Token Pos Tok
-  deriving (Show, Eq)
+  deriving (Show, Read, Eq, Ord, Typeable, Data, Generic)
 
 type Pos = (Int, Int) -- line, col
 
@@ -27,7 +31,7 @@ data Tok = TStr Text
          | TOpenAngle
          | TCloseAngle
          | TBackslash
-  deriving (Show, Eq)
+  deriving (Show, Read, Eq, Ord, Typeable, Data, Generic)
 
 tokenToText :: Token -> Text
 tokenToText (Token _ t) =
