@@ -46,9 +46,12 @@ test-suite hscommonmark-test
   hs-source-dirs:      test
   main-is:             Spec.hs
   build-depends:       base
+                     , hscommonmark
                      , tasty
                      , tasty-hunit
-                     , hscommonmark
+                     , tasty-quickcheck
+                     , quickcheck-text
+                     , text
                      , rosezipper
                      , containers
   if impl(ghc < 7.10)

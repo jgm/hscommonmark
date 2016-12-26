@@ -80,12 +80,7 @@ matchMarker treepos line = do
        BCodeBlock { codeIndented = indented }
          | indented   ->
              case line of
-                 (Token _ TTab : xs) -> return xs
-                 (Token (l,c) (TSpaces n) : xs)
-                   | n > 4 -> return (Token (l,c+4) (TSpaces (n - 4)) : xs)
-                   | n == 4 -> return xs
-                   | otherwise -> mzero
-                 _  -> mzero
+                 _  -> undefined   -- TODO
          | otherwise -> return line
        BHtmlBlock     -> undefined  -- TODO
        BThematicBreak -> mzero
@@ -93,22 +88,20 @@ matchMarker treepos line = do
 removeBlockQuoteStart :: [Token] -> Maybe ([Token], [Token])
 removeBlockQuoteStart ts = removeOneLeadingSpace <$>
   case ts of
+       -- TODO reproduce logic of "find first nonspace"
        (Token p1 (TSym '>') : xs) ->
          return ([Token p1 (TSym '>')], xs)
-       (Token p1 (TSpaces n) : Token p2 (TSym '>') : xs)
-         | n < 4 -> return ([Token p1 (TSpaces n), Token p2 (TSym '>')], xs)
+       (Token p1 TSpace : Token p2 (TSym '>') : xs)  -- TODO
+          -> return ([Token p2 (TSym '>')], xs)
        _ -> mzero
 
 removeOneLeadingSpace :: ([Token], [Token]) -> ([Token], [Token])
-removeOneLeadingSpace (ts, Token (l,c) (TSpaces n) : xs)
-  | n > 1 = (ts ++ [Token (l,c) (TSpaces 1)],
-             Token (l,c+1) (TSpaces (n - 1)) : xs)
-  | otherwise = (ts, xs)
+removeOneLeadingSpace (ts, Token (l,c) TSpace : xs) = (ts, xs)
 removeOneLeadingSpace (ts, Token (l,c) TTab : xs) =
   let remaining = 4 - (c `mod` 4)
   in  if remaining > 1
-         then (ts ++ [Token (l,c) (TSpaces 1)],
-               Token (l,c+1) (TSpaces (remaining - 1)) : xs)
+         then (ts ++ [Token (l,c) TSpace],
+               map (\n -> Token (l, c+n) TSpace) [1..(remaining - 1)] ++ xs)
          else (ts, xs)
 removeOneLeadingSpace (ts, xs) = (ts, xs)
 
@@ -118,9 +111,9 @@ isBlank toks = all isBlankTok toks
 isBlankTok :: Token -> Bool
 isBlankTok (Token _ t) =
   case t of
-       TSpaces _ -> True
-       TTab      -> True
-       _         -> False
+       TSpace -> True
+       TTab   -> True
+       _      -> False
 
 ancestors :: BlockTree -> [BlockTree]
 ancestors treepos =

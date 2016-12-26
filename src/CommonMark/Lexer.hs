@@ -26,10 +26,22 @@ getToken curline curcol inp =
      Just (c, rest) ->
        let pos = (curline, curcol)
        in case c of
-            ' ' -> let numspaces = maybe 1 (1 +) (Text.findIndex (/=' ') rest)
-                   in (Token pos (TSpaces numspaces), rest, curcol + numspaces)
+            ' ' ->  (Token pos TSpace, rest, curcol + 1)
             '\t' -> let increment = 4 - curcol `mod` 4
                     in  (Token pos TTab, rest, curcol + increment)
+            '*' ->  let numstars = maybe 1 (1 +) (Text.findIndex (/='*') rest)
+                    in  (Token pos (TAsterisks numstars), rest,
+                          curcol + numstars)
+            '_' ->  let numchars = maybe 1 (1 +) (Text.findIndex (/='*') rest)
+                    in  (Token pos (TUnderscores numchars), rest,
+                          curcol + numchars)
+            '\\' -> (Token pos TBackslash, rest, curcol + 1)
+            '[' ->  (Token pos TOpenBracket, rest, curcol + 1)
+            ']' ->  (Token pos TCloseBracket, rest, curcol + 1)
+            '(' ->  (Token pos TOpenParen, rest, curcol + 1)
+            ')' ->  (Token pos TCloseParen, rest, curcol + 1)
+            '<' ->  (Token pos TOpenAngle, rest, curcol + 1)
+            '>' ->  (Token pos TCloseAngle, rest, curcol + 1)
             _ | isAlphaNum c ->
                     case Text.span isAlphaNum inp of
                          (cs, rest) ->
