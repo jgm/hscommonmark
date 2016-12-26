@@ -1,4 +1,4 @@
-module CommonMark.Lexer ( tokenize ) where
+module CommonMark.Lexer ( tokenize, tokenizeLine ) where
 
 import CommonMark.Types
 import Data.Char (isAlphaNum)

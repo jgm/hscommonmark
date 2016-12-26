@@ -49,6 +49,8 @@ test-suite hscommonmark-test
                      , tasty
                      , tasty-hunit
                      , hscommonmark
+                     , rosezipper
+                     , containers
   if impl(ghc < 7.10)
      hs-source-dirs:   prelude
      other-modules:    Prelude

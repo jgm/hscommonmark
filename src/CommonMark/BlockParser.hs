@@ -1,4 +1,11 @@
-module CommonMark.BlockParser ()
+module CommonMark.BlockParser (
+    BlockTree
+  , Block(..)
+  , BlockType(..)
+  , parseBlocks
+  , parseLine
+  , analyzeLine
+)
 where
 import CommonMark.Types (Line, Token(..), Tok(..))
 import CommonMark.Lexer (tokenize)
@@ -7,6 +14,7 @@ import Data.Tree.Zipper
 import Data.Tree
 import Data.Text (Text)
 import qualified Data.Text as Text
+import Debug.Trace
 
 type BlockTree = TreePos Full Block
 
@@ -36,20 +44,22 @@ parseBlocks = toTree . foldr parseLine (fromTree emptyDoc)
 
 parseLine :: Line -> BlockTree -> BlockTree
 parseLine line treepos =
-  error $ show (rest, lastMatched)
-  where (rest, lastMatched) = analyzeLine (reverse (ancestors treepos)) line
+  error $ show res
+  where res = analyzeLine (reverse (ancestors treepos)) line
 
 -- | Analyze line and return treepos of last matched
 -- container node plus the remainder of the line,
 -- after matched delimiters.
-analyzeLine :: [BlockTree] -> Line -> (BlockTree, Line)
-analyzeLine (tp:tps) line =
-  case tps of
-       []    -> (tp, line)
-       (n:ns) -> case matchMarker n line of
-                      Nothing   -> (tp, line)
-                      Just rest -> analyzeLine ns rest
-analyzeLine [] line = error "analyzeLine [] - should not happen"
+analyzeLine :: [BlockTree] -> Line -> Maybe (BlockTree, Line)
+analyzeLine [] line = Nothing
+analyzeLine (n:ns) line =
+  case matchMarker n line of
+       Nothing    -> Nothing
+       Just line' -> Just $ go ns (n, line')
+  where go []       (m, l) = (m, l)
+        go (k:rest) (m, l) = case matchMarker k l of
+                                  Nothing -> (m, l)
+                                  Just l' -> go rest (k, l')
 
 matchMarker :: BlockTree -> Line -> Maybe Line
 matchMarker treepos line = do
@@ -111,15 +121,5 @@ ancestors treepos =
   case parent treepos of
         Nothing   -> [treepos]
         Just tp   -> tp : ancestors tp
-
--- TODO remove:
-test :: BlockTree
-test = fromTree $
-  Node (Block BDocument [] []) [
-          Node (Block BBlockQuote [] []) [
-            Node (Block BParagraph [] [])
-            []
-         ]
-        ]
 
 
