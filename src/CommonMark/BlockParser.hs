@@ -1,6 +1,7 @@
 module CommonMark.BlockParser ()
 where
-import CommonMark.Lexer (Line, Token(..), tokenize)
+import CommonMark.Types (Line, Token(..))
+import CommonMark.Lexer (tokenize)
 import Data.Tree.Zipper
 import Data.Tree
 

@@ -1,22 +1,9 @@
-module CommonMark.Lexer ( Token(..)
-                        , Tok(..)
-                        , Pos
-                        , Line
-                        , tokenize ) where
+module CommonMark.Lexer ( tokenize ) where
 
+import CommonMark.Types
 import Data.Char (isAlphaNum)
 import Data.Text (Text)
 import qualified Data.Text as Text
-
-data Token = Token Pos Tok
-  deriving (Show, Eq)
-
-type Pos = (Int, Int) -- line, col
-
-data Tok = TStr Text | TSpaces Int | TTab | TSym Char
-  deriving (Show, Eq)
-
-type Line = [Token]
 
 tokenize :: Text -> [Line]
 tokenize inp = zipWith tokenizeLine [1..] (Text.lines inp)

@@ -2,6 +2,8 @@
 import Test.Tasty
 import Test.Tasty.HUnit
 import CommonMark.Lexer
+import CommonMark.Types
+import CommonMark.BlockParser
 
 main :: IO ()
 main = defaultMain $ testGroup "CommonMark tests" $
