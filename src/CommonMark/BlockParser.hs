@@ -8,7 +8,8 @@ module CommonMark.BlockParser (
   , analyzeLine
 )
 where
-import CommonMark.Types (Line, Token(..), Tok(..))
+import CommonMark.Types (Line, Token(..), Tok(..), BlockTree,
+                         Block(..), BlockType(..))
 import CommonMark.Lexer (tokenize)
 import Control.Monad
 import Data.Tree.Zipper
@@ -17,36 +18,55 @@ import Data.Text (Text)
 import qualified Data.Text as Text
 import Debug.Trace
 
-type BlockTree = TreePos Full Block
-
-data Block = Block { blockType   :: BlockType
-                   , delimToks   :: [Token]
-                   , contentToks :: [Token]
-                   }
-  deriving (Eq, Show)
-
-data BlockType = BDocument
-               | BBlockQuote
-               | BList
-               | BItem
-               | BParagraph
-               | BHeading
-               | BCodeBlock { codeIndented   :: Bool
-                            , codeInfoString :: Text }
-               | BHtmlBlock
-               | BThematicBreak
-  deriving (Eq, Show)
-
 emptyDoc :: Tree Block
-emptyDoc = Node (Block BDocument [] []) []
+emptyDoc = Node (Block Document [] []) []
 
 parseBlocks :: [Line] -> Tree Block
 parseBlocks = toTree . foldr parseLine (fromTree emptyDoc)
 
 parseLine :: Line -> BlockTree -> BlockTree
 parseLine line treepos =
-  error $ show res
-  where res = analyzeLine (reverse (ancestors treepos)) line
+  case analyzeLine (reverse (ancestors treepos)) line of
+       Nothing  -> error "analyzeLine returned Nothing" -- shouldn't happen
+       Just (lastMatched, rest) ->
+         let (tip, rest') = if isContainerBlock lastMatched
+                               then openNewBlocks lastMatched rest
+                               else (lastMatched, rest)
+         in  addTextToContainer tip rest'
+
+isContainerBlock :: BlockTree -> Bool
+isContainerBlock bt = case toTree bt of
+                      Node (Block Document _ _) _ -> True
+                      Node (Block BlockQuote _ _) _ -> True
+                      Node (Block List _ _) _ -> True
+                      Node (Block Item _ _) _ -> True
+                      _ -> False
+
+-- We can assume that the treepos is a container block.
+openNewBlocks :: BlockTree -> Line -> (BlockTree, Line)
+openNewBlocks treepos line =
+  case matchNewBlock line of
+       Just (delim, rest, newblock) ->
+         let newtip = addChild newblock treepos
+         in openNewBlocks newtip rest
+       Nothing -> (treepos, line)
+
+addChild :: BlockTree -> BlockTree -> BlockTree
+addChild newblock treepos = undefined
+
+addTextToContainer :: BlockTree -> Line -> BlockTree
+addTextToContainer treepos line = undefined
+
+matchNewBlock :: [Token] -> Maybe ([Token], [Token], BlockTree)
+matchNewBlock ts =
+  case gobbleSpaces 4 ts of
+       Just rest -> return ([], rest, fromTree codeBlock)
+       Nothing   -> Nothing -- TODO
+
+codeBlock :: Tree Block
+codeBlock = Node (Block CodeBlock{ codeIndented = True
+                                 , codeInfoString = Text.pack ""
+                                 } [] []) []
 
 -- | Analyze line and return treepos of last matched
 -- container node plus the remainder of the line,
@@ -67,24 +87,24 @@ matchMarker treepos line = do
   let tree' = tree treepos
       block = rootLabel tree'
   case blockType block of
-       BDocument      -> return line
-       BBlockQuote    ->
+       Document      -> return line
+       BlockQuote    ->
          case removeBlockQuoteStart line of
               Just (ds, rest) -> return rest
               Nothing -> mzero
-       BList          -> return line
-       BItem          -> undefined  -- TODO
-       BParagraph     -> do
+       List          -> return line
+       Item          -> undefined  -- TODO
+       Paragraph     -> do
          guard (not (isBlank line))
          return line
-       BHeading       -> mzero
-       BCodeBlock { codeIndented = indented }
+       Heading       -> mzero
+       CodeBlock { codeIndented = indented }
          | indented  -> case gobbleSpaces 4 line of
                              Nothing  -> mzero
                              Just line' -> return line'
          | otherwise -> return line
-       BHtmlBlock     -> undefined  -- TODO
-       BThematicBreak -> mzero
+       HtmlBlock     -> undefined  -- TODO
+       ThematicBreak -> mzero
 
 gobbleSpaces :: Int -> [Token] -> Maybe [Token]
 gobbleSpaces 0 ts = Just ts

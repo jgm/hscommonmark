@@ -6,7 +6,13 @@ module CommonMark.Types (
   , tokenToText
   , Pos
   , Tok(..)
-  , Line ) where
+  , Line
+  , BlockTree
+  , Block(..)
+  , BlockType(..) ) where
+
+import Data.Tree.Zipper
+import Data.Tree
 import Data.Text (Text)
 import qualified Data.Text as Text
 import Data.Generics (Data, Typeable)
@@ -52,5 +58,25 @@ tokenToText (Token _ t) =
        TBackslash -> Text.singleton '\\'
 
 type Line = [Token]
+
+type BlockTree = TreePos Full Block
+
+data Block = Block { blockType   :: BlockType
+                   , delimToks   :: [Token]
+                   , contentToks :: [Token]
+                   }
+  deriving (Eq, Show)
+
+data BlockType = Document
+               | BlockQuote
+               | List
+               | Item
+               | Paragraph
+               | Heading
+               | CodeBlock { codeIndented   :: Bool
+                           , codeInfoString :: Text }
+               | HtmlBlock
+               | ThematicBreak
+  deriving (Eq, Show)
 
 

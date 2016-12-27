@@ -80,14 +80,14 @@ main = defaultMain $ testGroup "CommonMark tests" $
     ]
 
 t1 :: Tree Block
-t1 = Node (Block BParagraph [] []) []
+t1 = Node (Block Paragraph [] []) []
 
 t2 :: Tree Block
-t2 = Node (Block BBlockQuote [] []) [t1]
+t2 = Node (Block BlockQuote [] []) [t1]
 
 t3 :: Tree Block
-t3 = Node (Block BBlockQuote [] []) [t2]
+t3 = Node (Block BlockQuote [] []) [t2]
 
 t4 :: Tree Block
-t4 = Node (Block BDocument [] []) [t3]
+t4 = Node (Block Document [] []) [t3]
 
