@@ -51,19 +51,23 @@ openNewBlocks treepos line =
          in openNewBlocks newtip rest
        Nothing -> (treepos, line)
 
-addChild :: BlockTree -> BlockTree -> BlockTree
-addChild newblock treepos = undefined
+addChild :: Tree Block -> BlockTree -> BlockTree
+addChild newblock treepos = insert newblock (children treepos)
 
 addTextToContainer :: BlockTree -> Line -> BlockTree
 addTextToContainer treepos line = undefined
 
-matchNewBlock :: [Token] -> Maybe ([Token], [Token], BlockTree)
+matchNewBlock :: [Token] -> Maybe ([Token], [Token], Tree Block)
 matchNewBlock ts =
   case gobbleSpaces 4 ts of
-       Just rest -> return ([], rest, fromTree codeBlock)
+       Just rest -> return ([], rest, codeBlock)
        Nothing   ->
          case dropWhile isSpaceToken ts of
-              _ -> Nothing -- TODO
+              (t@(Token pos TGreaterThan) : xs) -> do
+                 let delim = maybe [t] (t:) (gobbleSpaces 1 xs)
+                 let rest' = drop (length delim - 1) xs
+                 return (delim, rest', blockQuote)
+              _ -> mzero
 
 isSpaceToken :: Token -> Bool
 isSpaceToken (Token _ TSpace) = True
@@ -75,6 +79,9 @@ codeBlock = Node (Block CodeBlock{ codeIndented = True
                                  , codeInfoString = Text.pack ""
                                  } [] []) []
 
+blockQuote :: Tree Block
+blockQuote = Node (Block BlockQuote [] []) []
+
 -- | Analyze line and return treepos of last matched
 -- container node plus the remainder of the line,
 -- after matched delimiters.
@@ -82,34 +89,37 @@ analyzeLine :: [BlockTree] -> Line -> Maybe (BlockTree, Line)
 analyzeLine [] line = Nothing
 analyzeLine (n:ns) line =
   case matchMarker n line of
-       Nothing    -> Nothing
-       Just line' -> Just $ go ns (n, line')
+       Nothing          -> Nothing
+       Just (ds, line') -> Just $ go ns (addDelims ds n, line')
   where go []       (m, l) = (m, l)
         go (k:rest) (m, l) = case matchMarker k l of
-                                  Nothing -> (m, l)
-                                  Just l' -> go rest (k, l')
+                                  Nothing        -> (m, l)
+                                  Just (ds', l') -> go rest
+                                                    (addDelims ds' k, l')
 
-matchMarker :: BlockTree -> Line -> Maybe Line
+addDelims :: [Token] -> BlockTree -> BlockTree
+addDelims [] treepos = treepos
+addDelims ds treepos = modifyTree
+  (\(Node (Block ty xs ys) sub) -> Node (Block ty (xs ++ ds) ys) sub) treepos
+
+matchMarker :: BlockTree -> [Token] -> Maybe ([Token], [Token])
 matchMarker treepos line = do
   let tree' = tree treepos
       block = rootLabel tree'
   case blockType block of
-       Document      -> return line
-       BlockQuote    ->
-         case removeBlockQuoteStart line of
-              Just (ds, rest) -> return rest
-              Nothing -> mzero
-       List          -> return line
+       Document      -> return ([], line)
+       BlockQuote    -> removeBlockQuoteStart line
+       List          -> return ([], line)
        Item          -> undefined  -- TODO
        Paragraph     -> do
          guard (not (isBlank line))
-         return line
+         return ([], line)
        Heading       -> mzero
        CodeBlock { codeIndented = indented }
          | indented  -> case gobbleSpaces 4 line of
                              Nothing  -> mzero
-                             Just line' -> return line'
-         | otherwise -> return line
+                             Just line' -> return ([], line')
+         | otherwise -> return ([], line)
        HtmlBlock     -> undefined  -- TODO
        ThematicBreak -> mzero
 
@@ -134,11 +144,10 @@ skipSpaces xs = xs
 removeBlockQuoteStart :: [Token] -> Maybe ([Token], [Token])
 removeBlockQuoteStart ts = removeOneLeadingSpace <$>
   case ts of
-       -- TODO reproduce logic of "find first nonspace"
        (Token p1 TGreaterThan : xs) ->
-         return ([Token p1 TGreaterThan], xs)
-       (Token p1 TSpace : Token p2 TGreaterThan : xs)  -- TODO
-          -> return ([Token p2 TGreaterThan], xs)
+          return ([Token p1 TGreaterThan], xs)
+       (Token p1 TSpace : Token p2 TGreaterThan : xs) ->
+          return ([Token p2 TGreaterThan], xs)
        _ -> mzero
 
 removeOneLeadingSpace :: ([Token], [Token]) -> ([Token], [Token])

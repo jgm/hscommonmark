@@ -70,7 +70,8 @@ main = defaultMain $ testGroup "CommonMark tests" $
           analyzeLine [fromTree t4, fromTree t3, fromTree t2, fromTree t1]
             [Token (1,0) TGreaterThan,Token (1,2) (TStr "hi")]
             @?=
-            Just (fromTree t3, [Token (1,2) (TStr "hi")])
+            Just (fromTree t3{ rootLabel = (rootLabel t3){ delimToks =
+               [Token (1,0) TGreaterThan] }}, [Token (1,2) (TStr "hi")])
       , testCase "block quote starts 3" $
           analyzeLine [fromTree t4, fromTree t3, fromTree t2, fromTree t1]
             [Token (1,0) TGreaterThan, Token (1,1) TSpace, Token (1,2) TSpace,
