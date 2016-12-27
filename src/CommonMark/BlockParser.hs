@@ -32,15 +32,23 @@ parseLine line treepos =
          let (tip, rest') = if isContainerBlock lastMatched
                                then openNewBlocks lastMatched rest
                                else (lastMatched, rest)
-         in  addTextToContainer tip rest'
+         in  addTokens tip rest'
 
 isContainerBlock :: BlockTree -> Bool
-isContainerBlock bt = case toTree bt of
-                      Node (Block Document _ _) _ -> True
-                      Node (Block BlockQuote _ _) _ -> True
-                      Node (Block List _ _) _ -> True
-                      Node (Block Item _ _) _ -> True
-                      _ -> False
+isContainerBlock bt = case blockType (rootLabel (toTree bt)) of
+                      Document   -> True
+                      BlockQuote -> True
+                      List       -> True
+                      Item       -> True
+                      _          -> False
+
+acceptsTokens :: BlockTree -> Bool
+acceptsTokens bt = case blockType (rootLabel (toTree bt)) of
+                   Paragraph   -> True
+                   Heading     -> True
+                   CodeBlock{} -> True
+                   HtmlBlock   -> True
+                   _           -> False
 
 -- We can assume that the treepos is a container block.
 openNewBlocks :: BlockTree -> Line -> (BlockTree, Line)
@@ -54,19 +62,39 @@ openNewBlocks treepos line =
 addChild :: Tree Block -> BlockTree -> BlockTree
 addChild newblock treepos = insert newblock (children treepos)
 
-addTextToContainer :: BlockTree -> Line -> BlockTree
-addTextToContainer treepos line = undefined
+addTokens :: BlockTree -> Line -> BlockTree
+addTokens treepos line =
+  if acceptsTokens treepos
+     then addContentToks line treepos
+     else
+       if isBlank line
+          then treepos
+          else addContentToks line $
+                 maybe (addChild emptyParagraph treepos)
+                   id (findOpenParagraph treepos)
+  where addContentToks ts = modifyLabel (\label ->
+               label{ contentToks = contentToks label ++ ts })
+
+-- find a Paragraph that is the descendent of treepos by lastChild.
+findOpenParagraph :: BlockTree -> Maybe BlockTree
+findOpenParagraph treepos
+  | blockType (rootLabel (toTree treepos)) == Paragraph =
+    Just treepos
+  | otherwise =
+    case (lastChild treepos) of
+         Just child -> findOpenParagraph child
+         Nothing    -> Nothing
 
 matchNewBlock :: [Token] -> Maybe ([Token], [Token], Tree Block)
 matchNewBlock ts =
   case gobbleSpaces 4 ts of
-       Just rest -> return ([], rest, codeBlock)
+       Just rest -> return ([], rest, emptyCodeBlock)
        Nothing   ->
          case dropWhile isSpaceToken ts of
               (t@(Token pos TGreaterThan) : xs) -> do
                  let delim = maybe [t] (t:) (gobbleSpaces 1 xs)
                  let rest' = drop (length delim - 1) xs
-                 return (delim, rest', blockQuote)
+                 return (delim, rest', emptyBlockQuote)
               _ -> mzero
 
 isSpaceToken :: Token -> Bool
@@ -74,13 +102,16 @@ isSpaceToken (Token _ TSpace) = True
 isSpaceToken (Token _ TTab)   = True
 isSpaceToken _                = False
 
-codeBlock :: Tree Block
-codeBlock = Node (Block CodeBlock{ codeIndented = True
-                                 , codeInfoString = Text.pack ""
-                                 } [] []) []
+emptyCodeBlock :: Tree Block
+emptyCodeBlock = Node (Block CodeBlock{ codeIndented = True
+                                      , codeInfoString = Text.pack ""
+                                      } [] []) []
 
-blockQuote :: Tree Block
-blockQuote = Node (Block BlockQuote [] []) []
+emptyBlockQuote :: Tree Block
+emptyBlockQuote = Node (Block BlockQuote [] []) []
+
+emptyParagraph :: Tree Block
+emptyParagraph = Node (Block Paragraph [] []) []
 
 -- | Analyze line and return treepos of last matched
 -- container node plus the remainder of the line,
@@ -99,8 +130,8 @@ analyzeLine (n:ns) line =
 
 addDelims :: [Token] -> BlockTree -> BlockTree
 addDelims [] treepos = treepos
-addDelims ds treepos = modifyTree
-  (\(Node (Block ty xs ys) sub) -> Node (Block ty (xs ++ ds) ys) sub) treepos
+addDelims ds treepos = modifyLabel
+  (\label -> label{ delimToks = delimToks label ++ ds }) treepos
 
 matchMarker :: BlockTree -> [Token] -> Maybe ([Token], [Token])
 matchMarker treepos line = do
