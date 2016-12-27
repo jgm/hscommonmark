@@ -34,8 +34,8 @@ data Tok = TStr Text
          | TCloseBracket
          | TOpenParen
          | TCloseParen
-         | TOpenAngle
-         | TCloseAngle
+         | TLessThan
+         | TGreaterThan
          | TBackslash
   deriving (Show, Read, Eq, Ord, Typeable, Data, Generic)
 
@@ -53,8 +53,8 @@ tokenToText (Token _ t) =
        TCloseBracket -> Text.singleton ']'
        TOpenParen -> Text.singleton '('
        TCloseParen -> Text.singleton ')'
-       TOpenAngle -> Text.singleton '<'
-       TCloseAngle -> Text.singleton '>'
+       TLessThan -> Text.singleton '<'
+       TGreaterThan -> Text.singleton '>'
        TBackslash -> Text.singleton '\\'
 
 type Line = [Token]

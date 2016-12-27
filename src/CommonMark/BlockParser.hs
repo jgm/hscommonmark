@@ -61,7 +61,14 @@ matchNewBlock :: [Token] -> Maybe ([Token], [Token], BlockTree)
 matchNewBlock ts =
   case gobbleSpaces 4 ts of
        Just rest -> return ([], rest, fromTree codeBlock)
-       Nothing   -> Nothing -- TODO
+       Nothing   ->
+         case dropWhile isSpaceToken ts of
+              _ -> Nothing -- TODO
+
+isSpaceToken :: Token -> Bool
+isSpaceToken (Token _ TSpace) = True
+isSpaceToken (Token _ TTab)   = True
+isSpaceToken _                = False
 
 codeBlock :: Tree Block
 codeBlock = Node (Block CodeBlock{ codeIndented = True
@@ -128,10 +135,10 @@ removeBlockQuoteStart :: [Token] -> Maybe ([Token], [Token])
 removeBlockQuoteStart ts = removeOneLeadingSpace <$>
   case ts of
        -- TODO reproduce logic of "find first nonspace"
-       (Token p1 (TSym '>') : xs) ->
-         return ([Token p1 (TSym '>')], xs)
-       (Token p1 TSpace : Token p2 (TSym '>') : xs)  -- TODO
-          -> return ([Token p2 (TSym '>')], xs)
+       (Token p1 TGreaterThan : xs) ->
+         return ([Token p1 TGreaterThan], xs)
+       (Token p1 TSpace : Token p2 TGreaterThan : xs)  -- TODO
+          -> return ([Token p2 TGreaterThan], xs)
        _ -> mzero
 
 removeOneLeadingSpace :: ([Token], [Token]) -> ([Token], [Token])

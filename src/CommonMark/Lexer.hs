@@ -43,8 +43,8 @@ getToken curline curcol inp =
             ']' ->  (Token pos TCloseBracket, rest, curcol + 1)
             '(' ->  (Token pos TOpenParen, rest, curcol + 1)
             ')' ->  (Token pos TCloseParen, rest, curcol + 1)
-            '<' ->  (Token pos TOpenAngle, rest, curcol + 1)
-            '>' ->  (Token pos TCloseAngle, rest, curcol + 1)
+            '<' ->  (Token pos TLessThan, rest, curcol + 1)
+            '>' ->  (Token pos TGreaterThan, rest, curcol + 1)
             _ | isAlphaNum c ->
                     case Text.span isAlphaNum inp of
                          (cs, rest') ->
