@@ -26,6 +26,7 @@ library
                      , text
                      , containers
                      , syb
+                     , split
                      , rosezipper
   default-language:    Haskell2010
 

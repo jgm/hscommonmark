@@ -16,13 +16,16 @@ import Data.Tree.Zipper
 import Data.Tree
 import Data.Text (Text)
 import qualified Data.Text as Text
+import Data.List.Split (split, keepDelimsR, whenElt)
 import Debug.Trace
 
-emptyDoc :: Tree Block
-emptyDoc = Node (Block Document [] []) []
+splitLines :: [Token] -> [Line]
+splitLines = split (keepDelimsR (whenElt isNewline))
+              where isNewline (Token _ TNewline) = True
+                    isNewline _                  = False
 
-parseBlocks :: [Line] -> Tree Block
-parseBlocks = toTree . foldr parseLine (fromTree emptyDoc)
+parseBlocks :: [Token] -> Tree Block
+parseBlocks = toTree . foldr parseLine (fromTree emptyDoc) . splitLines
 
 parseLine :: Line -> BlockTree -> BlockTree
 parseLine line treepos =
@@ -101,6 +104,9 @@ isSpaceToken :: Token -> Bool
 isSpaceToken (Token _ TSpace) = True
 isSpaceToken (Token _ TTab)   = True
 isSpaceToken _                = False
+
+emptyDoc :: Tree Block
+emptyDoc = Node (Block Document [] []) []
 
 emptyCodeBlock :: Tree Block
 emptyCodeBlock = Node (Block CodeBlock{ codeIndented = True

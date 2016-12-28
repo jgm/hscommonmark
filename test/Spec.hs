@@ -15,32 +15,30 @@ main = defaultMain $ testGroup "CommonMark tests" $
     [ testGroup "tokenizer tests" [
        testCase "lexer handles lines" $
           tokenize "hi\nthere\n\nbud\nok" @?=
-          [[Token (1,0) (TStr "hi")]
-          ,[Token (2,0) (TStr "there")]
-          ,[]
-          ,[Token (4,0) (TStr "bud")]
-          ,[Token (5,0) (TStr "ok")]]
+          [Token (1,0) (TStr "hi"), Token (1,2) TNewline
+          ,Token (2,0) (TStr "there"), Token (2,5) TNewline
+          ,Token (3,0) TNewline
+          ,Token (4,0) (TStr "bud"), Token (4,3) TNewline
+          ,Token (5,0) (TStr "ok")]
       , testCase "lexer handles tab positions" $
           tokenize "hi\ta \t\tb" @?=
-           [[Token (1,0) (TStr "hi")
-            ,Token (1,2) TTab
-            ,Token (1,4) (TStr "a")
-            ,Token (1,5) TSpace
-            ,Token (1,6) TTab
-            ,Token (1,8) TTab
-            ,Token (1,12) (TStr "b")]]
+           [Token (1,0) (TStr "hi")
+           ,Token (1,2) TTab
+           ,Token (1,4) (TStr "a")
+           ,Token (1,5) TSpace
+           ,Token (1,6) TTab
+           ,Token (1,8) TTab
+           ,Token (1,12) (TStr "b")]
       , testCase "lexer handles symbols" $
           tokenize "h5i?@=" @?=
-           [[Token (1,0) (TStr "h5i")
-            ,Token (1,3) (TSym '?')
-            ,Token (1,4) (TSym '@')
-            ,Token (1,5) (TSym '=')]]
-      , testCase "lexer handles empty input" $
-          tokenize "" @?= []
+           [Token (1,0) (TStr "h5i")
+           ,Token (1,3) (TSym '?')
+           ,Token (1,4) (TSym '@')
+           ,Token (1,5) (TSym '=')]
       , testCase "lexer handles empty input" $
           tokenize "" @?= []
       , testProperty "tokenToText round-trip" $
-          \x -> (mconcat . map tokenToText . tokenizeLine 1) x == x
+          \x -> (mconcat . map tokenToText . tokenize) x == x
       ]
     , testGroup "gobbleSpaces tests" [
         testCase "gobbleSpaces returns Nothing when not enough spaces" $
@@ -68,16 +66,19 @@ main = defaultMain $ testGroup "CommonMark tests" $
                                 Token (1,2) TGreaterThan])
       , testCase "block quote starts 2" $
           analyzeLine [fromTree t4, fromTree t3, fromTree t2, fromTree t1]
-            [Token (1,0) TGreaterThan,Token (1,2) (TStr "hi")]
+            [Token (1,0) TGreaterThan,Token (1,2) (TStr "hi"),
+             Token (1,4) TNewline]
             @?=
             Just (fromTree t3{ rootLabel = (rootLabel t3){ delimToks =
-               [Token (1,0) TGreaterThan] }}, [Token (1,2) (TStr "hi")])
+               [Token (1,0) TGreaterThan] }}, [Token (1,2) (TStr "hi"),
+                Token (1,4) TNewline])
       , testCase "block quote starts 3" $
           analyzeLine [fromTree t4, fromTree t3, fromTree t2, fromTree t1]
             [Token (1,0) TGreaterThan, Token (1,1) TSpace, Token (1,2) TSpace,
-              Token (1,3) TGreaterThan, Token (1,4) (TStr "hi")]
+              Token (1,3) TGreaterThan, Token (1,4) (TStr "hi"),
+              Token (1,6) TNewline]
             @?=
-            Just (fromTree t1, [Token (1,4) (TStr "hi")])
+            Just (fromTree t1, [Token (1,4) (TStr "hi"), Token (1,6) TNewline])
       ]
     ]
 

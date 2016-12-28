@@ -37,6 +37,7 @@ data Tok = TStr Text
          | TLessThan
          | TGreaterThan
          | TBackslash
+         | TNewline
   deriving (Show, Read, Eq, Ord, Typeable, Data, Generic)
 
 tokenToText :: Token -> Text
@@ -56,6 +57,7 @@ tokenToText (Token _ t) =
        TLessThan -> Text.singleton '<'
        TGreaterThan -> Text.singleton '>'
        TBackslash -> Text.singleton '\\'
+       TNewline -> Text.singleton '\n'
 
 type Line = [Token]
 
