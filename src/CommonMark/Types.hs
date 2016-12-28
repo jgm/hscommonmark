@@ -38,6 +38,11 @@ data Tok = TStr Text
          | TLessThan
          | TGreaterThan
          | TBackslash
+         | THyphen
+         | TEquals
+         | TPeriod
+         | TPlus
+         | THash
          | TEndline EndlineType
   deriving (Show, Read, Eq, Ord, Typeable, Data, Generic)
 
@@ -61,6 +66,11 @@ tokenToText (Token _ t) =
        TLessThan -> Text.singleton '<'
        TGreaterThan -> Text.singleton '>'
        TBackslash -> Text.singleton '\\'
+       THyphen -> Text.singleton '-'
+       TEquals -> Text.singleton '='
+       TPeriod -> Text.singleton '.'
+       TPlus -> Text.singleton '+'
+       THash -> Text.singleton '#'
        TEndline LF -> Text.singleton '\n'
        TEndline CR -> Text.singleton '\r'
        TEndline CRLF -> Text.pack "\r\n"
