@@ -49,6 +49,7 @@ isContainerBlock bt = case blockType (label bt) of
 acceptsTokens :: BlockTree -> Bool
 acceptsTokens bt = case blockType (label bt) of
                    Paragraph   -> True
+                   BlankLines  -> True
                    Heading     -> True
                    CodeBlock{} -> True
                    HtmlBlock   -> True
@@ -71,13 +72,12 @@ addTokens :: BlockTree -> Line -> BlockTree
 addTokens treepos line =
   if acceptsTokens treepos
      then addContentToks line treepos
-     else
+     else addContentToks line $
        if isBlank line
-          then treepos
-          else addContentToks line $
-            case findOpenParagraph treepos of
-                 Just para -> para
-                 Nothing   -> addChild emptyParagraph treepos
+          then addChild emptyBlankLines treepos
+          else case findOpenParagraph treepos of
+                    Just para -> para
+                    Nothing   -> addChild emptyParagraph treepos
   where addContentToks ts = modifyLabel (\label ->
                label{ contentToks = contentToks label ++ ts })
 
@@ -122,6 +122,9 @@ emptyBlockQuote = Node (Block BlockQuote [] []) []
 emptyParagraph :: Tree Block
 emptyParagraph = Node (Block Paragraph [] []) []
 
+emptyBlankLines :: Tree Block
+emptyBlankLines = Node (Block BlankLines [] []) []
+
 -- | Analyze line and return treepos of last matched
 -- container node plus the remainder of the line,
 -- after matched delimiters.
@@ -152,6 +155,9 @@ matchMarker treepos line = do
        Item          -> undefined  -- TODO
        Paragraph     -> do
          guard (not (isBlank line))
+         return ([], line)
+       BlankLines    -> do
+         guard (isBlank line)
          return ([], line)
        Heading       -> mzero
        CodeBlock { codeIndented = indented }

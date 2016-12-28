@@ -85,6 +85,7 @@ data BlockType = Document
                            , codeInfoString :: Text }
                | HtmlBlock
                | ThematicBreak
+               | BlankLines
   deriving (Eq, Show)
 
 

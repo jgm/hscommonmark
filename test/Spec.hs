@@ -86,7 +86,7 @@ main = defaultMain $ testGroup "CommonMark tests" $
           Node {rootLabel = Block {blockType = Document, delimToks = [], contentToks = []}, subForest = [Node {rootLabel = Block {blockType = Paragraph, delimToks = [], contentToks = [Token (1,0) (TStr "a"),Token (1,1) (TEndline LF),Token (2,0) (TStr "b")]}, subForest = []}]}
       , testCase "paragraphs separated by blank line" $
           parseBlocks (tokenize "a\n\nb") @?=
-          Node {rootLabel = Block {blockType = Document, delimToks = [], contentToks = []}, subForest = [Node {rootLabel = Block {blockType = Paragraph, delimToks = [], contentToks = [Token (1,0) (TStr "a"),Token (1,1) (TEndline LF)]}, subForest = []}, Node {rootLabel = Block {blockType = Paragraph, delimToks = [], contentToks = [Token (2,0) (TStr "b")]}, subForest = []}]}
+          Node {rootLabel = Block {blockType = Document, delimToks = [], contentToks = []}, subForest = [Node {rootLabel = Block {blockType = Paragraph, delimToks = [], contentToks = [Token (1,0) (TStr "a"),Token (1,1) (TEndline LF)]}, subForest = []}, Node {rootLabel = Block {blockType = BlankLines, delimToks = [], contentToks = [Token (2,0) (TEndline LF)]}, subForest = []}, Node {rootLabel = Block {blockType = Paragraph, delimToks = [], contentToks = [Token (3,0) (TStr "b")]}, subForest = []}]}
       ]
     ]
 
