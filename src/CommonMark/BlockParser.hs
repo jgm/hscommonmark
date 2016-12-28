@@ -9,7 +9,7 @@ module CommonMark.BlockParser (
 )
 where
 import CommonMark.Types (Line, Token(..), Tok(..), BlockTree,
-                         Block(..), BlockType(..))
+                         Block(..), BlockType(..), tokenToText)
 import CommonMark.Lexer (tokenize)
 import Control.Monad
 import Data.Tree.Zipper
@@ -222,4 +222,7 @@ ancestors treepos =
         Nothing   -> [treepos]
         Just tp   -> tp : ancestors tp
 
-
+showTree :: Tree Block -> IO ()
+showTree = putStrLn . drawTree .
+  fmap (\(Block tt _ ts) ->
+    show tt ++ " " ++ show (mconcat (map tokenToText ts)))
