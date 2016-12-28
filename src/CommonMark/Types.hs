@@ -31,18 +31,6 @@ data Tok = TStr Text
          | TBackticks Int
          | TAsterisks Int
          | TUnderscores Int
-         | TOpenBracket
-         | TCloseBracket
-         | TOpenParen
-         | TCloseParen
-         | TLessThan
-         | TGreaterThan
-         | TBackslash
-         | THyphen
-         | TEquals
-         | TPeriod
-         | TPlus
-         | THash
          | TEndline EndlineType
   deriving (Show, Read, Eq, Ord, Typeable, Data, Generic)
 
@@ -59,18 +47,6 @@ tokenToText (Token _ t) =
        TBackticks i -> Text.replicate i "`"
        TAsterisks i -> Text.replicate i "*"
        TUnderscores i -> Text.replicate i "_"
-       TOpenBracket -> Text.singleton '['
-       TCloseBracket -> Text.singleton ']'
-       TOpenParen -> Text.singleton '('
-       TCloseParen -> Text.singleton ')'
-       TLessThan -> Text.singleton '<'
-       TGreaterThan -> Text.singleton '>'
-       TBackslash -> Text.singleton '\\'
-       THyphen -> Text.singleton '-'
-       TEquals -> Text.singleton '='
-       TPeriod -> Text.singleton '.'
-       TPlus -> Text.singleton '+'
-       THash -> Text.singleton '#'
        TEndline LF -> Text.singleton '\n'
        TEndline CR -> Text.singleton '\r'
        TEndline CRLF -> Text.pack "\r\n"

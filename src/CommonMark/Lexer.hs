@@ -39,13 +39,6 @@ getToken curline curcol inp =
             '`' ->  let n = maybe 0 id (Text.findIndex (/='`') rest)
                     in  (Token pos (TBackticks (n+1)), Text.drop n rest,
                           curline, curcol + n + 1)
-            '\\' -> (Token pos TBackslash, rest, curline, curcol + 1)
-            '[' ->  (Token pos TOpenBracket, rest, curline, curcol + 1)
-            ']' ->  (Token pos TCloseBracket, rest, curline, curcol + 1)
-            '(' ->  (Token pos TOpenParen, rest, curline, curcol + 1)
-            ')' ->  (Token pos TCloseParen, rest, curline, curcol + 1)
-            '<' ->  (Token pos TLessThan, rest, curline, curcol + 1)
-            '>' ->  (Token pos TGreaterThan, rest, curline, curcol + 1)
             _ | isAlphaNum c ->
                     case Text.span isAlphaNum inp of
                          (cs, rest') ->

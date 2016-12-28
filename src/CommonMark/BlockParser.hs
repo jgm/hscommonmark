@@ -97,7 +97,7 @@ matchNewBlock ts =
        Just rest -> return ([], rest, emptyCodeBlock)
        Nothing   ->
          case dropWhile isSpaceToken ts of
-              (t@(Token pos TGreaterThan) : xs) -> do
+              (t@(Token pos (TSym '>')) : xs) -> do
                  let delim = maybe [t] (t:) (gobbleSpaces 1 xs)
                  let rest' = drop (length delim - 1) xs
                  return (delim, rest', emptyBlockQuote)
@@ -189,10 +189,10 @@ skipSpaces xs = xs
 removeBlockQuoteStart :: [Token] -> Maybe ([Token], [Token])
 removeBlockQuoteStart ts = removeOneLeadingSpace <$>
   case ts of
-       (Token p1 TGreaterThan : xs) ->
-          return ([Token p1 TGreaterThan], xs)
-       (Token p1 TSpace : Token p2 TGreaterThan : xs) ->
-          return ([Token p2 TGreaterThan], xs)
+       (Token p1 (TSym '>') : xs) ->
+          return ([Token p1 (TSym '>')], xs)
+       (Token p1 TSpace : Token p2 (TSym '>') : xs) ->
+          return ([Token p2 (TSym '>')], xs)
        _ -> mzero
 
 removeOneLeadingSpace :: ([Token], [Token]) -> ([Token], [Token])

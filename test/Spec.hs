@@ -60,22 +60,22 @@ main = defaultMain $ testGroup "CommonMark tests" $
     , testGroup "analyzeLine tests" [
         testCase "block quote starts 1" $
           analyzeLine [fromTree t4, fromTree t3, fromTree t2, fromTree t1]
-            [Token (1,0) (TStr "hi"),Token (1,2) TGreaterThan]
+            [Token (1,0) (TStr "hi"),Token (1,2) (TSym '>')]
             @?=
             Just (fromTree t4, [Token (1,0) (TStr "hi"),
-                                Token (1,2) TGreaterThan])
+                                Token (1,2) (TSym '>')])
       , testCase "block quote starts 2" $
           analyzeLine [fromTree t4, fromTree t3, fromTree t2, fromTree t1]
-            [Token (1,0) TGreaterThan,Token (1,2) (TStr "hi"),
+            [Token (1,0) (TSym '>'),Token (1,2) (TStr "hi"),
              Token (1,4) (TEndline LF)]
             @?=
             Just (fromTree t3{ rootLabel = (rootLabel t3){ delimToks =
-               [Token (1,0) TGreaterThan] }}, [Token (1,2) (TStr "hi"),
+               [Token (1,0) (TSym '>')] }}, [Token (1,2) (TStr "hi"),
                 Token (1,4) (TEndline LF)])
       , testCase "block quote starts 3" $
           analyzeLine [fromTree t4, fromTree t3, fromTree t2, fromTree t1]
-            [Token (1,0) TGreaterThan, Token (1,1) TSpace, Token (1,2) TSpace,
-              Token (1,3) TGreaterThan, Token (1,4) (TStr "hi"),
+            [Token (1,0) (TSym '>'), Token (1,1) TSpace, Token (1,2) TSpace,
+              Token (1,3) (TSym '>'), Token (1,4) (TStr "hi"),
               Token (1,6) (TEndline LF)]
             @?=
             Just (fromTree t1, [Token (1,4) (TStr "hi"), Token (1,6) (TEndline LF)])
