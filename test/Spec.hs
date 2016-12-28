@@ -15,10 +15,10 @@ main = defaultMain $ testGroup "CommonMark tests" $
     [ testGroup "tokenizer tests" [
        testCase "lexer handles lines" $
           tokenize "hi\nthere\n\nbud\nok" @?=
-          [Token (1,0) (TStr "hi"), Token (1,2) TNewline
-          ,Token (2,0) (TStr "there"), Token (2,5) TNewline
-          ,Token (3,0) TNewline
-          ,Token (4,0) (TStr "bud"), Token (4,3) TNewline
+          [Token (1,0) (TStr "hi"), Token (1,2) (TEndline LF)
+          ,Token (2,0) (TStr "there"), Token (2,5) (TEndline LF)
+          ,Token (3,0) (TEndline LF)
+          ,Token (4,0) (TStr "bud"), Token (4,3) (TEndline LF)
           ,Token (5,0) (TStr "ok")]
       , testCase "lexer handles tab positions" $
           tokenize "hi\ta \t\tb" @?=
@@ -67,18 +67,18 @@ main = defaultMain $ testGroup "CommonMark tests" $
       , testCase "block quote starts 2" $
           analyzeLine [fromTree t4, fromTree t3, fromTree t2, fromTree t1]
             [Token (1,0) TGreaterThan,Token (1,2) (TStr "hi"),
-             Token (1,4) TNewline]
+             Token (1,4) (TEndline LF)]
             @?=
             Just (fromTree t3{ rootLabel = (rootLabel t3){ delimToks =
                [Token (1,0) TGreaterThan] }}, [Token (1,2) (TStr "hi"),
-                Token (1,4) TNewline])
+                Token (1,4) (TEndline LF)])
       , testCase "block quote starts 3" $
           analyzeLine [fromTree t4, fromTree t3, fromTree t2, fromTree t1]
             [Token (1,0) TGreaterThan, Token (1,1) TSpace, Token (1,2) TSpace,
               Token (1,3) TGreaterThan, Token (1,4) (TStr "hi"),
-              Token (1,6) TNewline]
+              Token (1,6) (TEndline LF)]
             @?=
-            Just (fromTree t1, [Token (1,4) (TStr "hi"), Token (1,6) TNewline])
+            Just (fromTree t1, [Token (1,4) (TStr "hi"), Token (1,6) (TEndline LF)])
       ]
     ]
 

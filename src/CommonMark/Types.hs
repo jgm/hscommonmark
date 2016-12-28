@@ -6,6 +6,7 @@ module CommonMark.Types (
   , tokenToText
   , Pos
   , Tok(..)
+  , EndlineType(..)
   , Line
   , BlockTree
   , Block(..)
@@ -37,7 +38,10 @@ data Tok = TStr Text
          | TLessThan
          | TGreaterThan
          | TBackslash
-         | TNewline
+         | TEndline EndlineType
+  deriving (Show, Read, Eq, Ord, Typeable, Data, Generic)
+
+data EndlineType = CR | LF | CRLF
   deriving (Show, Read, Eq, Ord, Typeable, Data, Generic)
 
 tokenToText :: Token -> Text
@@ -57,7 +61,9 @@ tokenToText (Token _ t) =
        TLessThan -> Text.singleton '<'
        TGreaterThan -> Text.singleton '>'
        TBackslash -> Text.singleton '\\'
-       TNewline -> Text.singleton '\n'
+       TEndline LF -> Text.singleton '\n'
+       TEndline CR -> Text.singleton '\r'
+       TEndline CRLF -> Text.pack "\r\n"
 
 type Line = [Token]
 

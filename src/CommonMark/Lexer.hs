@@ -21,11 +21,12 @@ getToken curline curcol inp =
      Just (c, rest) -> Just $
        let pos = (curline, curcol)
        in case c of
-            '\n' -> (Token pos TNewline, rest, curline + 1, 0)
+            '\n' -> (Token pos (TEndline LF), rest, curline + 1, 0)
             '\r' -> case Text.uncons rest of
                          Just ('\n', rest') ->
-                             (Token pos TNewline, rest', curline + 1, 0)
-                         Nothing   -> (Token pos TNewline, rest, curline + 1, 0)
+                             (Token pos (TEndline CRLF), rest', curline + 1, 0)
+                         _   ->
+                             (Token pos (TEndline CR), rest, curline + 1, 0)
             ' ' ->  (Token pos TSpace, rest, curline, curcol + 1)
             '\t' -> let increment = 4 - curcol `mod` 4
                     in  (Token pos TTab, rest, curline, curcol + increment)

@@ -21,8 +21,8 @@ import Debug.Trace
 
 splitLines :: [Token] -> [Line]
 splitLines = split (keepDelimsR (whenElt isNewline))
-              where isNewline (Token _ TNewline) = True
-                    isNewline _                  = False
+              where isNewline (Token _ (TEndline _)) = True
+                    isNewline _                      = False
 
 parseBlocks :: [Token] -> Tree Block
 parseBlocks = toTree . foldr parseLine (fromTree emptyDoc) . splitLines
