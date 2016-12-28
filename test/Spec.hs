@@ -80,6 +80,14 @@ main = defaultMain $ testGroup "CommonMark tests" $
             @?=
             Just (fromTree t1, [Token (1,4) (TStr "hi"), Token (1,6) (TEndline LF)])
       ]
+    , testGroup "parseBlocks tests" [
+        testCase "simple two-line paragraph" $
+          parseBlocks (tokenize "a\nb") @?=
+          Node {rootLabel = Block {blockType = Document, delimToks = [], contentToks = []}, subForest = [Node {rootLabel = Block {blockType = Paragraph, delimToks = [], contentToks = [Token (1,0) (TStr "a"),Token (1,1) (TEndline LF),Token (2,0) (TStr "b")]}, subForest = []}]}
+      , testCase "paragraphs separated by blank line" $
+          parseBlocks (tokenize "a\n\nb") @?=
+          Node {rootLabel = Block {blockType = Document, delimToks = [], contentToks = []}, subForest = [Node {rootLabel = Block {blockType = Paragraph, delimToks = [], contentToks = [Token (1,0) (TStr "a"),Token (1,1) (TEndline LF)]}, subForest = []}, Node {rootLabel = Block {blockType = Paragraph, delimToks = [], contentToks = [Token (2,0) (TStr "b")]}, subForest = []}]}
+      ]
     ]
 
 t1 :: Tree Block
