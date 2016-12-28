@@ -56,16 +56,11 @@ tokenToText (Token _ t) =
 
 type Line = [Token]
 
-type BlockTree = TreePos Full Block
-
 data Elt a = Elt { eltType     :: a
                  , delimToks   :: [Token]
                  , contentToks :: [Token]
                  }
   deriving (Show, Read, Eq, Ord, Typeable, Data, Generic)
-
-type Block = Elt BlockType
-type Inline = Elt InlineType
 
 data BlockType = Document
                | BlockQuote
@@ -80,13 +75,21 @@ data BlockType = Document
                | BlankLines
   deriving (Show, Read, Eq, Ord, Typeable, Data, Generic)
 
-data InlineType = Txt
+data InlineType = Inlines
+                | Txt
                 | Softbreak
                 | Linebreak
                 | Code
                 | HtmlInline
-                | Emph [Inline]
-                | Strong [Inline]
-                | Link [Inline]
-                | Image [Inline]
+                | Emph
+                | Strong
+                | Link
+                | Image
   deriving (Show, Read, Eq, Ord, Typeable, Data, Generic)
+
+type Block = Elt BlockType
+type Inline = Elt InlineType
+
+type BlockTree = TreePos Full Block
+type InlineTree = TreePos Full Inline
+

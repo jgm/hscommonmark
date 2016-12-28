@@ -1,3 +1,4 @@
+{-# LANGUAGE RankNTypes #-}
 module CommonMark.BlockParser (
     BlockTree
   , Block
@@ -222,7 +223,7 @@ ancestors treepos =
         Nothing   -> [treepos]
         Just tp   -> tp : ancestors tp
 
-showTree :: Tree Block -> IO ()
+showTree :: forall a . (Show a) => Tree (Elt a) -> IO ()
 showTree = putStrLn . drawTree .
   fmap (\(Elt tt _ ts) ->
     show tt ++ " " ++ show (mconcat (map tokenToText ts)))
