@@ -77,6 +77,7 @@ data BlockType = Document
 
 data InlineType = Inlines
                 | Txt
+                | Space
                 | Softbreak
                 | Linebreak
                 | Code
