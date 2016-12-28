@@ -18,6 +18,7 @@ library
   exposed-modules:     CommonMark
                        CommonMark.Types
                        CommonMark.BlockParser
+                       CommonMark.InlineParser
                        CommonMark.Lexer
   if impl(ghc < 7.10)
      hs-source-dirs:   prelude

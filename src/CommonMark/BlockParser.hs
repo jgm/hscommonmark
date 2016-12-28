@@ -1,6 +1,7 @@
 module CommonMark.BlockParser (
     BlockTree
-  , Block(..)
+  , Block
+  , Elt(..)
   , BlockType(..)
   , gobbleSpaces
   , parseBlocks
@@ -8,8 +9,7 @@ module CommonMark.BlockParser (
   , analyzeLine
 )
 where
-import CommonMark.Types (Line, Token(..), Tok(..), BlockTree,
-                         Block(..), BlockType(..), tokenToText)
+import CommonMark.Types
 import CommonMark.Lexer (tokenize)
 import Control.Monad
 import Data.Tree.Zipper
@@ -39,7 +39,7 @@ parseLine treepos line =
          in  addTokens tip rest'
 
 isContainerBlock :: BlockTree -> Bool
-isContainerBlock bt = case blockType (label bt) of
+isContainerBlock bt = case eltType (label bt) of
                       Document   -> True
                       BlockQuote -> True
                       List       -> True
@@ -47,7 +47,7 @@ isContainerBlock bt = case blockType (label bt) of
                       _          -> False
 
 acceptsTokens :: BlockTree -> Bool
-acceptsTokens bt = case blockType (label bt) of
+acceptsTokens bt = case eltType (label bt) of
                    Paragraph   -> True
                    BlankLines  -> True
                    Heading     -> True
@@ -84,7 +84,7 @@ addTokens treepos line =
 -- find a Paragraph that is the descendent of treepos by lastChild.
 findOpenParagraph :: BlockTree -> Maybe BlockTree
 findOpenParagraph treepos
-  | blockType (label treepos) == Paragraph =
+  | eltType (label treepos) == Paragraph =
     Just treepos
   | otherwise =
     case lastChild treepos of
@@ -109,21 +109,21 @@ isSpaceToken (Token _ TTab)   = True
 isSpaceToken _                = False
 
 emptyDoc :: Tree Block
-emptyDoc = Node (Block Document [] []) []
+emptyDoc = Node (Elt Document [] []) []
 
 emptyCodeBlock :: Tree Block
-emptyCodeBlock = Node (Block CodeBlock{ codeIndented = True
-                                      , codeInfoString = Text.pack ""
-                                      } [] []) []
+emptyCodeBlock = Node (Elt CodeBlock{ codeIndented = True
+                                    , codeInfoString = Text.pack ""
+                                    } [] []) []
 
 emptyBlockQuote :: Tree Block
-emptyBlockQuote = Node (Block BlockQuote [] []) []
+emptyBlockQuote = Node (Elt BlockQuote [] []) []
 
 emptyParagraph :: Tree Block
-emptyParagraph = Node (Block Paragraph [] []) []
+emptyParagraph = Node (Elt Paragraph [] []) []
 
 emptyBlankLines :: Tree Block
-emptyBlankLines = Node (Block BlankLines [] []) []
+emptyBlankLines = Node (Elt BlankLines [] []) []
 
 -- | Analyze line and return treepos of last matched
 -- container node plus the remainder of the line,
@@ -148,7 +148,7 @@ addDelims ds treepos = modifyLabel
 matchMarker :: BlockTree -> [Token] -> Maybe ([Token], [Token])
 matchMarker treepos line = do
   let block = label treepos
-  case blockType block of
+  case eltType block of
        Document      -> return ([], line)
        BlockQuote    -> removeBlockQuoteStart line
        List          -> return ([], line)
@@ -224,5 +224,5 @@ ancestors treepos =
 
 showTree :: Tree Block -> IO ()
 showTree = putStrLn . drawTree .
-  fmap (\(Block tt _ ts) ->
+  fmap (\(Elt tt _ ts) ->
     show tt ++ " " ++ show (mconcat (map tokenToText ts)))

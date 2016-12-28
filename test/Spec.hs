@@ -83,22 +83,22 @@ main = defaultMain $ testGroup "CommonMark tests" $
     , testGroup "parseBlocks tests" [
         testCase "simple two-line paragraph" $
           parseBlocks (tokenize "a\nb") @?=
-          Node {rootLabel = Block {blockType = Document, delimToks = [], contentToks = []}, subForest = [Node {rootLabel = Block {blockType = Paragraph, delimToks = [], contentToks = [Token (1,0) (TStr "a"),Token (1,1) (TEndline LF),Token (2,0) (TStr "b")]}, subForest = []}]}
+          Node {rootLabel = Elt {eltType = Document, delimToks = [], contentToks = []}, subForest = [Node {rootLabel = Elt {eltType = Paragraph, delimToks = [], contentToks = [Token (1,0) (TStr "a"),Token (1,1) (TEndline LF),Token (2,0) (TStr "b")]}, subForest = []}]}
       , testCase "paragraphs separated by blank line" $
           parseBlocks (tokenize "a\n\nb") @?=
-          Node {rootLabel = Block {blockType = Document, delimToks = [], contentToks = []}, subForest = [Node {rootLabel = Block {blockType = Paragraph, delimToks = [], contentToks = [Token (1,0) (TStr "a"),Token (1,1) (TEndline LF)]}, subForest = []}, Node {rootLabel = Block {blockType = BlankLines, delimToks = [], contentToks = [Token (2,0) (TEndline LF)]}, subForest = []}, Node {rootLabel = Block {blockType = Paragraph, delimToks = [], contentToks = [Token (3,0) (TStr "b")]}, subForest = []}]}
+          Node {rootLabel = Elt {eltType = Document, delimToks = [], contentToks = []}, subForest = [Node {rootLabel = Elt {eltType = Paragraph, delimToks = [], contentToks = [Token (1,0) (TStr "a"),Token (1,1) (TEndline LF)]}, subForest = []}, Node {rootLabel = Elt {eltType = BlankLines, delimToks = [], contentToks = [Token (2,0) (TEndline LF)]}, subForest = []}, Node {rootLabel = Elt {eltType = Paragraph, delimToks = [], contentToks = [Token (3,0) (TStr "b")]}, subForest = []}]}
       ]
     ]
 
 t1 :: Tree Block
-t1 = Node (Block Paragraph [] []) []
+t1 = Node (Elt Paragraph [] []) []
 
 t2 :: Tree Block
-t2 = Node (Block BlockQuote [] []) [t1]
+t2 = Node (Elt BlockQuote [] []) [t1]
 
 t3 :: Tree Block
-t3 = Node (Block BlockQuote [] []) [t2]
+t3 = Node (Elt BlockQuote [] []) [t2]
 
 t4 :: Tree Block
-t4 = Node (Block Document [] []) [t3]
+t4 = Node (Elt Document [] []) [t3]
 

@@ -9,8 +9,11 @@ module CommonMark.Types (
   , EndlineType(..)
   , Line
   , BlockTree
-  , Block(..)
-  , BlockType(..) ) where
+  , Elt(..)
+  , Block
+  , Inline
+  , BlockType(..)
+  , InlineType(..) ) where
 
 import Data.Tree.Zipper
 import Data.Tree
@@ -55,11 +58,14 @@ type Line = [Token]
 
 type BlockTree = TreePos Full Block
 
-data Block = Block { blockType   :: BlockType
-                   , delimToks   :: [Token]
-                   , contentToks :: [Token]
-                   }
-  deriving (Eq, Show)
+data Elt a = Elt { eltType     :: a
+                 , delimToks   :: [Token]
+                 , contentToks :: [Token]
+                 }
+  deriving (Show, Read, Eq, Ord, Typeable, Data, Generic)
+
+type Block = Elt BlockType
+type Inline = Elt InlineType
 
 data BlockType = Document
                | BlockQuote
@@ -72,6 +78,15 @@ data BlockType = Document
                | HtmlBlock
                | ThematicBreak
                | BlankLines
-  deriving (Eq, Show)
+  deriving (Show, Read, Eq, Ord, Typeable, Data, Generic)
 
-
+data InlineType = Txt
+                | Softbreak
+                | Linebreak
+                | Code
+                | HtmlInline
+                | Emph [Inline]
+                | Strong [Inline]
+                | Link [Inline]
+                | Image [Inline]
+  deriving (Show, Read, Eq, Ord, Typeable, Data, Generic)
