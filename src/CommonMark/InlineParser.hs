@@ -2,6 +2,8 @@ module CommonMark.InlineParser ( parseInlines, findClosingBackticks ) where
 import CommonMark.Types
 import Data.Tree
 import Data.Tree.Zipper
+import qualified Data.IntMap as IntMap
+import Data.List (foldl')
 
 -- the idea here is that we'll start with startingTree,
 -- and analyze the tokens in precedence order,
@@ -12,23 +14,40 @@ parseInlines :: [Token] -> TreePos Full Inline
 parseInlines ts = fromTree (Node Elt{ eltType = Inlines
                                     , delimToks = []
                                     , contentToks = []}
-                                  (tokensToNodes ts))
+                                  (tokensToNodes (mkBacktickMap ts) ts))
 
-tokensToNodes :: [Token] -> [Tree Inline]
-tokensToNodes [] = []
-tokensToNodes (t@(Token _ (TEndline _)) : ts) =
-  mknode Softbreak [t] : tokensToNodes ts
-tokensToNodes (t@(Token _ TSpace) : ts) =
-  mknode Space [t] : tokensToNodes ts
-tokensToNodes (t@(Token _ (TBackticks n)) : ts) =
-  case break (\(Token _ ty) -> ty == TBackticks n) ts of
-       (codetoks, (endbackticks:rest)) ->
-         Node Elt { eltType = Code
-                  , delimToks = [t, endbackticks]
-                  , contentToks = codetoks } [] : tokensToNodes rest
-       _ -> mknode Txt [t] : tokensToNodes ts
-tokensToNodes (t:ts) =
-  mknode Txt [t] : tokensToNodes ts
+-- the backtick map is an optimization that allows us to be avoid
+-- scanning unnecessarily for closing backtick spans.
+type BacktickMap = IntMap.IntMap Pos
+
+-- This is to avoid performance problems with things like
+-- ` `` ``` ```` ```` ... we can tell instantly if there is
+-- a backtick span of a certain length after a token position.
+-- Unfortunately it imposes a small fixed cost on all inputs.
+mkBacktickMap :: [Token] -> BacktickMap
+mkBacktickMap = foldl' f mempty
+  where f tickmap (Token pos (TBackticks n)) = IntMap.insert n pos tickmap
+        f tickmap _ = tickmap
+
+tokensToNodes :: BacktickMap -> [Token] -> [Tree Inline]
+tokensToNodes _ [] = []
+tokensToNodes tickmap (t@(Token _ (TEndline _)) : ts) =
+  mknode Softbreak [t] : tokensToNodes tickmap ts
+tokensToNodes tickmap (t@(Token _ TSpace) : ts) =
+  mknode Space [t] : tokensToNodes tickmap ts
+tokensToNodes tickmap (t@(Token pos (TBackticks n)) : ts) =
+  case IntMap.lookup n tickmap of
+       Just pos' | pos' > pos ->
+         case break (\(Token _ ty) -> ty == TBackticks n) ts of
+              (codetoks, (endbackticks:rest)) ->
+                Node Elt { eltType = Code
+                         , delimToks = [t, endbackticks]
+                         , contentToks = codetoks } []
+                           : tokensToNodes tickmap rest
+              _ -> mknode Txt [t] : tokensToNodes tickmap ts
+       _ -> mknode Txt [t] : tokensToNodes tickmap ts
+tokensToNodes tickmap (t:ts) =
+  mknode Txt [t] : tokensToNodes tickmap ts
 
 mknode :: InlineType -> [Token] -> Tree Inline
 mknode ty ts =
