@@ -1,4 +1,4 @@
-module CommonMark.InlineParser ( parseInlines, findClosingBackticks ) where
+module CommonMark.InlineParser ( parseInlines ) where
 import CommonMark.Types
 import Data.Tree
 import Data.Tree.Zipper
@@ -55,36 +55,6 @@ mknode ty ts =
           , delimToks = []
           , contentToks = ts} []
 
--- TODO how does this interact with raw HTML, esp. backticks in
--- attributes? Should we change the spec so that `` has absolute
--- priority?  also autolinks.
-findCode :: TreePos Full Inline -> TreePos Full Inline
-findCode treepos =
-  case firstChild treepos of
-       Nothing  -> treepos
-       Just opener  ->
-         case contentToks (label opener) of
-              [Token _ (TBackticks n)] ->
-                case findClosingBackticks n opener of
-                     Just closer -> makeCodeBetween opener closer treepos
-                     Nothing     -> treepos
-              _ -> case next opener of
-                        Just tp -> findCode tp
-                        Nothing   -> treepos
-
-makeCodeBetween :: TreePos Full Inline -> TreePos Full Inline
-                -> TreePos Full Inline -> TreePos Full Inline
-makeCodeBetween startpos endpos parentpos =
-  let codepos = insert codeNode (nextSpace endpos)
-      codeNode = Node Elt{ eltType = Code
-                         , delimToks = delims
-                         , contentToks = toks} []
-      delims = contentToks (label startpos) ++ contentToks (label endpos)
-      (finaltree, toks) = extractToks startpos endpos
-  in  undefined
-
-extractToks = undefined
-
 -- iterate from startpos to endpos, deleting each
 -- node and adding its contentsTok to contentsTok of
 -- a new code node -- (except for startpos and endpos, which
@@ -134,13 +104,3 @@ findOpeningBracket treepos =
         Just tp   -> case contentToks (label tp) of
                           [Token _ (TSym '[')] -> Just tp
                           _ -> findOpeningBracket tp
-
--- finds first closing backtick span of given size to the right of treepos
-findClosingBackticks :: Int -> TreePos Full Inline
-                     -> Maybe (TreePos Full Inline)
-findClosingBackticks n treepos =
-  case next treepos of
-        Nothing   -> Nothing
-        Just tp   -> case contentToks (label tp) of
-                          [Token _ (TBackticks n)] -> Just tp
-                          _ -> findClosingBackticks n tp
