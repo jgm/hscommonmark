@@ -5,11 +5,18 @@ import Data.Tree.Zipper
 import qualified Data.IntMap as IntMap
 import Data.List (foldl')
 
+-- TODO
+-- [ ] reference map param to parseInlines?
+-- [ ] inline HTML
+-- [ ] handle hard line breaks
+-- [ ] autolinks
+-- [ ] links and images
+-- [ ] emphasis and strong
+
 -- the idea here is that we'll start with startingTree,
 -- and analyze the tokens in precedence order,
 -- breaking them into subtrees and assigning delimToks
--- when appropriate.  eventually we'll need to consolidate
--- adjacent Txt nodes too.
+-- when appropriate.
 parseInlines :: [Token] -> TreePos Full Inline
 parseInlines ts = fromTree (Node Elt{ eltType = Inlines
                                     , delimToks = []
