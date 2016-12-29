@@ -9,17 +9,68 @@ import Data.Tree.Zipper
 -- when appropriate.  eventually we'll need to consolidate
 -- adjacent Txt nodes too.
 parseInlines :: [Token] -> TreePos Full Inline
-parseInlines ts = startingTree
-  where startingTree = fromTree (Node Elt{ eltType = Inlines
-                                         , delimToks = []
-                                         , contentToks = []}
-                                  (map tokToNode ts))
-        tokToNode t = Node Elt{ eltType = case t of
-                                              Token _ (TEndline _) -> Softbreak
-                                              Token _ (TSpace)     -> Space
-                                              _                    -> Txt
-                              , delimToks = []
-                              , contentToks = [t]} []
+parseInlines ts = fromTree (Node Elt{ eltType = Inlines
+                                    , delimToks = []
+                                    , contentToks = []}
+                                  (tokensToNodes ts))
+
+tokensToNodes :: [Token] -> [Tree Inline]
+tokensToNodes [] = []
+tokensToNodes (t@(Token _ (TEndline _)) : ts) =
+  mknode Softbreak [t] : tokensToNodes ts
+tokensToNodes (t@(Token _ TSpace) : ts) =
+  mknode Space [t] : tokensToNodes ts
+tokensToNodes (t@(Token _ (TBackticks n)) : ts) =
+  case break (\(Token _ ty) -> ty == TBackticks n) ts of
+       (codetoks, (endbackticks:rest)) ->
+         Node Elt { eltType = Code
+                  , delimToks = [t, endbackticks]
+                  , contentToks = codetoks } [] : tokensToNodes rest
+       _ -> mknode Txt [t] : tokensToNodes ts
+tokensToNodes (t:ts) =
+  mknode Txt [t] : tokensToNodes ts
+
+mknode :: InlineType -> [Token] -> Tree Inline
+mknode ty ts =
+  Node Elt{ eltType = ty
+          , delimToks = []
+          , contentToks = ts} []
+
+-- TODO how does this interact with raw HTML, esp. backticks in
+-- attributes? Should we change the spec so that `` has absolute
+-- priority?  also autolinks.
+findCode :: TreePos Full Inline -> TreePos Full Inline
+findCode treepos =
+  case firstChild treepos of
+       Nothing  -> treepos
+       Just opener  ->
+         case contentToks (label opener) of
+              [Token _ (TBackticks n)] ->
+                case findClosingBackticks n opener of
+                     Just closer -> makeCodeBetween opener closer treepos
+                     Nothing     -> treepos
+              _ -> case next opener of
+                        Just tp -> findCode tp
+                        Nothing   -> treepos
+
+makeCodeBetween :: TreePos Full Inline -> TreePos Full Inline
+                -> TreePos Full Inline -> TreePos Full Inline
+makeCodeBetween startpos endpos parentpos =
+  let codepos = insert codeNode (nextSpace endpos)
+      codeNode = Node Elt{ eltType = Code
+                         , delimToks = delims
+                         , contentToks = toks} []
+      delims = contentToks (label startpos) ++ contentToks (label endpos)
+      (finaltree, toks) = extractToks startpos endpos
+  in  undefined
+
+extractToks = undefined
+
+-- iterate from startpos to endpos, deleting each
+-- node and adding its contentsTok to contentsTok of
+-- a new code node -- (except for startpos and endpos, which
+-- go to delimsTok).  Then insert the new code node.
+-- and return the paren
 
 canOpen :: TreePos Full Inline -> Bool
 canOpen treepos = undefined
