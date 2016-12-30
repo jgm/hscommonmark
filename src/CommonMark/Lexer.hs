@@ -36,7 +36,8 @@ getToken curline curcol inp =
             '_' ->  let n = maybe 0 id (Text.findIndex (/='_') rest)
                     in  (Token pos (TUnderscores (n+1)), Text.drop n rest,
                           curline, curcol + n + 1)
-            '`' ->  let n = maybe 0 id (Text.findIndex (/='`') rest)
+            '`' ->  let n = maybe (Text.length rest) id
+                                (Text.findIndex (/='`') rest)
                     in  (Token pos (TBackticks (n+1)), Text.drop n rest,
                           curline, curcol + n + 1)
             _ | isAlphaNum c ->

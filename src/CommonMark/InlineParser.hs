@@ -8,9 +8,11 @@ import Text.HTML.TagSoup (Tag(..), parseTags)
 
 -- TODO
 -- [ ] reference map param to parseInlines?
+-- [x] resolve escapes
 -- [x] inline HTML
--- [ ] handle hard line breaks
 -- [ ] autolinks
+-- [ ] entities (should be recognized by tokenizer?)
+-- [ ] handle hard line breaks
 -- [ ] links and images
 -- [ ] emphasis and strong
 
@@ -40,37 +42,55 @@ mkBacktickMap = foldl' f mempty
 -- nogt = no greater than sign in remaining input
 tokensToNodes :: Bool -> BacktickMap -> [Token] -> [Tree Inline]
 tokensToNodes _ _ [] = []
+tokensToNodes nogt tickmap (bs@(Token _ (TSym '\\')) : t@(Token (l,c) ty) : ts)
+  = case ty of
+       TEndline _ -> mknode Linebreak [bs] [t] : tokensToNodes nogt tickmap ts
+       TBackticks n -> mknode Txt [bs] [Token (l,c) (TSym '`')] :
+                        tokensToNodes nogt tickmap
+                          (if n > 1
+                              then ((Token (l,c+1) (TBackticks (n-1))) : ts)
+                              else ts)
+       TAsterisks n -> mknode Txt [bs] [Token (l,c) (TSym '*')] :
+                        tokensToNodes nogt tickmap
+                          (if n > 1
+                              then ((Token (l,c+1) (TAsterisks (n-1))) : ts)
+                              else ts)
+       TUnderscores n -> mknode Txt [bs] [Token (l,c) (TSym '_')] :
+                        tokensToNodes nogt tickmap
+                          (if n > 1
+                              then ((Token (l,c+1) (TUnderscores (n-1))) : ts)
+                              else ts)
+       TSym c -> mknode Txt [bs] [t] : tokensToNodes nogt tickmap ts
+       _ -> mknode Txt [] [bs] : tokensToNodes nogt tickmap (t:ts)
 tokensToNodes nogt tickmap (t@(Token _ (TEndline _)) : ts) =
-  mknode Softbreak [t] : tokensToNodes nogt tickmap ts
+  mknode Softbreak [] [t] : tokensToNodes nogt tickmap ts
 tokensToNodes nogt tickmap (t@(Token _ TSpace) : ts) =
-  mknode Space [t] : tokensToNodes nogt tickmap ts
+  mknode Space [] [t] : tokensToNodes nogt tickmap ts
 tokensToNodes nogt tickmap (t@(Token pos (TBackticks n)) : ts) =
   case IntMap.lookup n tickmap of
        Just pos' | pos' > pos ->
          case break (\(Token _ ty) -> ty == TBackticks n) ts of
               (codetoks, (endbackticks:rest)) ->
-                Node Elt { eltType = Code
-                         , delimToks = [t, endbackticks]
-                         , contentToks = codetoks } []
-                           : tokensToNodes nogt tickmap rest
-              _ -> mknode Txt [t] : tokensToNodes nogt tickmap ts
-       _ -> mknode Txt [t] : tokensToNodes nogt tickmap ts
+                 mknode Code [t, endbackticks] codetoks
+                 : tokensToNodes nogt tickmap rest
+              _ -> mknode Txt [] [t] : tokensToNodes nogt tickmap ts
+       _ -> mknode Txt [] [t] : tokensToNodes nogt tickmap ts
 tokensToNodes nogt tickmap (t@(Token pos (TSym '<')) : ts) =
   case break (\(Token _ ty) -> ty == TSym '>') ts of
        (tagtoks, (gt:rest)) ->
          (case parseTags (mconcat (map tokenToText (t : tagtoks ++ [gt]))) of
-              (TagOpen _ _:_) -> mknode HtmlInline (t : tagtoks ++ [gt])
-              (TagClose _:_) -> mknode HtmlInline (t : tagtoks ++ [gt])
-              (TagComment _:_) -> mknode HtmlInline (t : tagtoks ++ [gt])
-              _ -> mknode Txt [t]) : tokensToNodes nogt tickmap rest
-       _ -> mknode Txt [t] : tokensToNodes True tickmap ts
+              (TagOpen _ _:_) -> mknode HtmlInline [] (t : tagtoks ++ [gt])
+              (TagClose _:_) -> mknode HtmlInline [] (t : tagtoks ++ [gt])
+              (TagComment _:_) -> mknode HtmlInline [] (t : tagtoks ++ [gt])
+              _ -> mknode Txt [] [t]) : tokensToNodes nogt tickmap rest
+       _ -> mknode Txt [] [t] : tokensToNodes True tickmap ts
 tokensToNodes nogt tickmap (t:ts) =
-  mknode Txt [t] : tokensToNodes nogt tickmap ts
+  mknode Txt [] [t] : tokensToNodes nogt tickmap ts
 
-mknode :: InlineType -> [Token] -> Tree Inline
-mknode ty ts =
+mknode :: InlineType -> [Token] -> [Token] -> Tree Inline
+mknode ty ds ts =
   Node Elt{ eltType = ty
-          , delimToks = []
+          , delimToks = ds
           , contentToks = ts} []
 
 -- iterate from startpos to endpos, deleting each
