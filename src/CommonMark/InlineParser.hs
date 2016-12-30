@@ -10,11 +10,11 @@ import Text.HTML.TagSoup (Tag(..), parseTags)
 -- [ ] reference map param to parseInlines?
 -- [x] resolve escapes
 -- [x] inline HTML
--- [ ] autolinks
 -- [ ] entities (should be recognized by tokenizer?)
--- [ ] handle hard line breaks
--- [ ] links and images
--- [ ] emphasis and strong
+-- [ ] autolinks
+-- [ ] handle two-space hard line breaks
+-- [ ] POSTPROCESSING: links and images
+-- [ ] POSTPROCESSING: emphasis and strong
 
 -- the idea here is that we'll start with startingTree,
 -- and analyze the tokens in precedence order,
