@@ -9,6 +9,8 @@ import Text.HTML.TagSoup (Tag(..), parseTags)
 -- TODO
 -- [ ] reference map param to parseInlines?
 -- [ ] autolinks
+-- [ ] note that we'll have to reconvert Escape tokens to
+--     Sym in code spans, autolinks, raw HTML, <url> in links.
 -- [ ] POSTPROCESSING: links and images
 -- [ ] POSTPROCESSING: emphasis and strong
 
@@ -23,15 +25,6 @@ parseInlines ts = fromTree (Node Elt{ eltType = Inlines
                                   (tokensToNodes False ts))
 
 -- nogt = no greater than sign in remaining input
--- Note: we have to do backslash escaping here; the tokenizer
--- doesn't have enough information, since it doesn't know whether
--- \` occurs within a code span.
--- TODO: do backslash-escaping in the lexer, and handle the above
--- problem with a special case here?  that might be simpler.
--- if this is the ONLY special case to worry about... (what
--- about autolinks, <url> in inline and reference links,
--- and attribute contents in raw HTML?  well, we can always
--- systematically reconvert the Escape tokens in these cases.)
 tokensToNodes :: Bool -> [Token] -> [Tree Inline]
 tokensToNodes _ [] = []
 tokensToNodes nogt (t@(Token _ (TEndline _)) : ts) =

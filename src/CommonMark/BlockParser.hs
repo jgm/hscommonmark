@@ -21,6 +21,16 @@ import Data.List.Split (split, keepDelimsR, whenElt)
 import Data.List (foldl')
 import Debug.Trace
 
+-- TODO
+-- [ ] lists and items
+-- [ ] thematic breaks
+-- [ ] atx headers
+-- [ ] setext headers
+-- [ ] fenced code blocks
+-- [ ] raw HTML blocks
+-- [ ] reference link defs
+-- [ ] resolving inline content
+
 parseBlocks :: [Token] -> Tree Block
 parseBlocks = toTree . root . foldl' parseLine (fromTree emptyDoc) . splitLines
 
