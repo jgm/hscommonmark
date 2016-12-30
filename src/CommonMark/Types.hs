@@ -31,6 +31,7 @@ data Tok = TStr Text
          | TSpace
          | TTab
          | TSym Char
+         | TEntity Text
          | TBackticks Int
          | TAsterisks Int
          | TUnderscores Int
@@ -40,6 +41,8 @@ data Tok = TStr Text
 data EndlineType = CR | LF | CRLF
   deriving (Show, Read, Eq, Ord, Typeable, Data, Generic)
 
+-- | This function should obey the law:
+-- tokenToText (tokenize x) == x
 tokenToText :: Token -> Text
 tokenToText (Token _ t) =
   case t of
@@ -47,6 +50,7 @@ tokenToText (Token _ t) =
        TSpace -> Text.singleton ' '
        TTab -> Text.singleton '\t'
        TSym c -> Text.singleton c
+       TEntity s -> s
        TBackticks i -> Text.replicate i "`"
        TAsterisks i -> Text.replicate i "*"
        TUnderscores i -> Text.replicate i "_"

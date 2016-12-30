@@ -1,9 +1,10 @@
 module CommonMark.Lexer ( tokenize ) where
 
 import CommonMark.Types
-import Data.Char (isAlphaNum)
+import Data.Char (isAlphaNum, isAlpha, isDigit, isHexDigit)
 import Data.Text (Text)
 import qualified Data.Text as Text
+import Data.Monoid
 
 tokenize :: Text -> [Token]
 tokenize inp = go 1 0 inp
@@ -40,6 +41,12 @@ getToken curline curcol inp =
                                 (Text.findIndex (/='`') rest)
                     in  (Token pos (TBackticks (n+1)), Text.drop n rest,
                           curline, curcol + n + 1)
+            '&' ->  case scanEntity rest of
+                         Just (ent, rest') ->
+                           (Token pos (TEntity ent), rest',
+                             curline, curcol + Text.length ent)
+                         Nothing -> (Token pos (TSym '&'), rest,
+                                        curline, curcol + 1)
             _ | isAlphaNum c ->
                     case Text.span isAlphaNum inp of
                          (cs, rest') ->
@@ -48,3 +55,37 @@ getToken curline curcol inp =
                                   curcol + numchars)
               | otherwise -> (Token pos (TSym c), rest, curline, curcol + 1)
 
+-- scan for an entity after the &; return full entity, including &,
+-- and the remaining text.
+scanEntity :: Text -> Maybe (Text, Text)
+scanEntity t =
+  let mbbody =
+       case Text.uncons t of
+         Just ('#', rest') ->
+           case Text.uncons rest' of
+                Just (c, rest'')
+                  | c == 'x' || c == 'X' ->
+                    case Text.span isHexDigit rest'' of
+                         (es, rest''') | not (Text.null es) ->
+                           Just (Text.singleton '#' <> Text.singleton c <> es,
+                                 rest''')
+                         _ -> Nothing
+                  | isDigit c ->
+                     case Text.span isDigit rest' of
+                          (es, rest''') -> Just (Text.singleton '#' <> es,
+                                                 rest''')
+                Nothing -> Nothing
+         _ ->
+           case Text.span isAlpha t of
+                (es, rest'')
+                  | not (Text.null es)
+                     -> Just (es, rest'')
+                _ -> Nothing
+  in  case mbbody of
+           Nothing  -> Nothing
+           Just (entbody, rest) ->
+             case Text.uncons rest of
+                  Just (';', remainder) ->
+                    Just (Text.singleton '&' <> entbody <> Text.singleton ';',
+                          remainder)
+                  _ -> Nothing

@@ -40,11 +40,22 @@ mkBacktickMap = foldl' f mempty
         f tickmap _ = tickmap
 
 -- nogt = no greater than sign in remaining input
+-- Note: we have to do backslash escaping here; the tokenizer
+-- doesn't have enough information, since it doesn't know whether
+-- \` occurs within a code span.
+-- TODO: do backslash-escaping in the lexer, and handle the above
+-- problem with a special case here?  that might be simpler.
+-- if this is the ONLY special case to worry about... (what
+-- about autolinks, <url> in inline and reference links,
+-- and attribute contents in raw HTML?  well, we can always
+-- systematically reconvert the Escape tokens in these cases.)
 tokensToNodes :: Bool -> BacktickMap -> [Token] -> [Tree Inline]
 tokensToNodes _ _ [] = []
 tokensToNodes nogt tickmap (bs@(Token _ (TSym '\\')) : t@(Token (l,c) ty) : ts)
   = case ty of
        TEndline _ -> mknode Linebreak [bs] [t] : tokensToNodes nogt tickmap ts
+       TEntity e  -> mknode Txt [bs] [Token (l,c) (TStr e)] :
+                         tokensToNodes nogt tickmap ts
        TBackticks n -> mknode Txt [bs] [Token (l,c) (TSym '`')] :
                         tokensToNodes nogt tickmap
                           (if n > 1
