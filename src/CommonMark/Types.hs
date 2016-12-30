@@ -32,6 +32,7 @@ data Tok = TStr Text
          | TTab
          | TSym Char
          | TEntity Text
+         | TEscaped Char
          | TBackticks Int
          | TAsterisks Int
          | TUnderscores Int
@@ -51,6 +52,7 @@ tokenToText (Token _ t) =
        TTab -> Text.singleton '\t'
        TSym c -> Text.singleton c
        TEntity s -> s
+       TEscaped c -> Text.pack ['\\',c]
        TBackticks i -> Text.replicate i "`"
        TAsterisks i -> Text.replicate i "*"
        TUnderscores i -> Text.replicate i "_"

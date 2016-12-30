@@ -24,20 +24,7 @@ parseInlines :: [Token] -> TreePos Full Inline
 parseInlines ts = fromTree (Node Elt{ eltType = Inlines
                                     , delimToks = []
                                     , contentToks = []}
-                                  (tokensToNodes False (mkBacktickMap ts) ts))
-
--- the backtick map is an optimization that allows us to be avoid
--- scanning unnecessarily for closing backtick spans.
-type BacktickMap = IntMap.IntMap Pos
-
--- This is to avoid performance problems with things like
--- ` `` ``` ```` ```` ... we can tell instantly if there is
--- a backtick span of a certain length after a token position.
--- Unfortunately it imposes a small fixed cost on all inputs.
-mkBacktickMap :: [Token] -> BacktickMap
-mkBacktickMap = foldl' f mempty
-  where f tickmap (Token pos (TBackticks n)) = IntMap.insert n pos tickmap
-        f tickmap _ = tickmap
+                                  (tokensToNodes False ts))
 
 -- nogt = no greater than sign in remaining input
 -- Note: we have to do backslash escaping here; the tokenizer
@@ -49,54 +36,36 @@ mkBacktickMap = foldl' f mempty
 -- about autolinks, <url> in inline and reference links,
 -- and attribute contents in raw HTML?  well, we can always
 -- systematically reconvert the Escape tokens in these cases.)
-tokensToNodes :: Bool -> BacktickMap -> [Token] -> [Tree Inline]
-tokensToNodes _ _ [] = []
-tokensToNodes nogt tickmap (bs@(Token _ (TSym '\\')) : t@(Token (l,c) ty) : ts)
-  = case ty of
-       TEndline _ -> mknode Linebreak [bs] [t] : tokensToNodes nogt tickmap ts
-       TEntity e  -> mknode Txt [bs] [Token (l,c) (TStr e)] :
-                         tokensToNodes nogt tickmap ts
-       TBackticks n -> mknode Txt [bs] [Token (l,c) (TSym '`')] :
-                        tokensToNodes nogt tickmap
-                          (if n > 1
-                              then ((Token (l,c+1) (TBackticks (n-1))) : ts)
-                              else ts)
-       TAsterisks n -> mknode Txt [bs] [Token (l,c) (TSym '*')] :
-                        tokensToNodes nogt tickmap
-                          (if n > 1
-                              then ((Token (l,c+1) (TAsterisks (n-1))) : ts)
-                              else ts)
-       TUnderscores n -> mknode Txt [bs] [Token (l,c) (TSym '_')] :
-                        tokensToNodes nogt tickmap
-                          (if n > 1
-                              then ((Token (l,c+1) (TUnderscores (n-1))) : ts)
-                              else ts)
-       TSym c -> mknode Txt [bs] [t] : tokensToNodes nogt tickmap ts
-       _ -> mknode Txt [] [bs] : tokensToNodes nogt tickmap (t:ts)
-tokensToNodes nogt tickmap (t@(Token _ (TEndline _)) : ts) =
-  mknode Softbreak [] [t] : tokensToNodes nogt tickmap ts
-tokensToNodes nogt tickmap (t@(Token _ TSpace) : ts) =
-  mknode Space [] [t] : tokensToNodes nogt tickmap ts
-tokensToNodes nogt tickmap (t@(Token pos (TBackticks n)) : ts) =
-  case IntMap.lookup n tickmap of
-       Just pos' | pos' > pos ->
-         case break (\(Token _ ty) -> ty == TBackticks n) ts of
-              (codetoks, (endbackticks:rest)) ->
-                 mknode Code [t, endbackticks] codetoks
-                 : tokensToNodes nogt tickmap rest
-              _ -> mknode Txt [] [t] : tokensToNodes nogt tickmap ts
-       _ -> mknode Txt [] [t] : tokensToNodes nogt tickmap ts
-tokensToNodes nogt tickmap (t@(Token pos (TSym '<')) : ts) =
+tokensToNodes :: Bool -> [Token] -> [Tree Inline]
+tokensToNodes _ [] = []
+tokensToNodes nogt (t@(Token _ (TEndline _)) : ts) =
+  mknode Softbreak [] [t] : tokensToNodes nogt ts
+tokensToNodes nogt (t@(Token _ TSpace) : ts) =
+  mknode Space [] [t] : tokensToNodes nogt ts
+tokensToNodes nogt (t@(Token pos (TBackticks n)) : ts) =
+     case break (\(Token _ ty) -> ty == TBackticks n) (adjustBackticks ts) of
+           (codetoks, (endbackticks:rest)) ->
+                mknode Code [t, endbackticks] codetoks
+                : tokensToNodes nogt rest
+           _ -> mknode Txt [] [t] : tokensToNodes nogt ts
+      where adjustBackticks :: [Token] -> [Token]
+            adjustBackticks [] = []
+            adjustBackticks (Token pos (TEscaped '`') :
+                             Token (l,c) (TBackticks m) : ts)
+              | m == n - 1 = Token pos (TSym '\\') :
+                             Token (l, c - 1) (TBackticks n) : ts
+            adjustBackticks (t:ts) = t : adjustBackticks ts
+tokensToNodes nogt (t@(Token pos (TSym '<')) : ts) =
   case break (\(Token _ ty) -> ty == TSym '>') ts of
        (tagtoks, (gt:rest)) ->
          (case parseTags (mconcat (map tokenToText (t : tagtoks ++ [gt]))) of
               (TagOpen _ _:_) -> mknode HtmlInline [] (t : tagtoks ++ [gt])
               (TagClose _:_) -> mknode HtmlInline [] (t : tagtoks ++ [gt])
               (TagComment _:_) -> mknode HtmlInline [] (t : tagtoks ++ [gt])
-              _ -> mknode Txt [] [t]) : tokensToNodes nogt tickmap rest
-       _ -> mknode Txt [] [t] : tokensToNodes True tickmap ts
-tokensToNodes nogt tickmap (t:ts) =
-  mknode Txt [] [t] : tokensToNodes nogt tickmap ts
+              _ -> mknode Txt [] [t]) : tokensToNodes nogt rest
+       _ -> mknode Txt [] [t] : tokensToNodes True ts
+tokensToNodes nogt (t:ts) =
+  mknode Txt [] [t] : tokensToNodes nogt ts
 
 mknode :: InlineType -> [Token] -> [Token] -> Tree Inline
 mknode ty ds ts =

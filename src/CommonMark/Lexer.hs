@@ -1,7 +1,8 @@
 module CommonMark.Lexer ( tokenize ) where
 
 import CommonMark.Types
-import Data.Char (isAlphaNum, isAlpha, isDigit, isHexDigit)
+import Data.Char (isAlphaNum, isAlpha, isDigit, isHexDigit, isAscii,
+                  isSymbol, isPunctuation)
 import Data.Text (Text)
 import qualified Data.Text as Text
 import Data.Monoid
@@ -41,6 +42,12 @@ getToken curline curcol inp =
                                 (Text.findIndex (/='`') rest)
                     in  (Token pos (TBackticks (n+1)), Text.drop n rest,
                           curline, curcol + n + 1)
+            '\\' -> case Text.uncons rest of
+                         Just (c, rest') |
+                           isAscii c && (isSymbol c || isPunctuation c) ->
+                             (Token pos (TEscaped c), Text.drop 1 rest,
+                               curline, curcol + 2)
+                         _ -> (Token pos (TSym '\\'), rest, curline, curcol + 1)
             '&' ->  case scanEntity rest of
                          Just (ent, rest') ->
                            (Token pos (TEntity ent), rest',

@@ -6,6 +6,7 @@ import Data.Text.Arbitrary ()
 import CommonMark.Lexer
 import CommonMark.Types
 import CommonMark.BlockParser
+import CommonMark.InlineParser
 import Data.Tree
 import Data.Tree.Zipper
 import qualified Data.Text as Text
@@ -87,6 +88,12 @@ main = defaultMain $ testGroup "CommonMark tests" $
       , testCase "paragraphs separated by blank line" $
           parseBlocks (tokenize "a\n\nb") @?=
           Node {rootLabel = Elt {eltType = Document, delimToks = [], contentToks = []}, subForest = [Node {rootLabel = Elt {eltType = Paragraph, delimToks = [], contentToks = [Token (1,0) (TStr "a"),Token (1,1) (TEndline LF)]}, subForest = []}, Node {rootLabel = Elt {eltType = BlankLines, delimToks = [], contentToks = [Token (2,0) (TEndline LF)]}, subForest = []}, Node {rootLabel = Elt {eltType = Paragraph, delimToks = [], contentToks = [Token (3,0) (TStr "b")]}, subForest = []}]}
+      ]
+    , testGroup "parseInlines tests" [
+        testCase "code span with final backslash" $
+          parseInlines [Token (1,0) (TBackticks 3),Token (1,3) (TStr "hi"),Token (1,5) (TEscaped '`'),Token (1,7) (TBackticks 2)]
+          @?=
+          fromTree (Node {rootLabel = Elt {eltType = Inlines, delimToks = [], contentToks = []}, subForest = [Node {rootLabel = Elt {eltType = Code, delimToks = [Token (1,0) (TBackticks 3),Token (1,6) (TBackticks 3)], contentToks = [Token (1,3) (TStr "hi"),Token (1,5) (TSym '\\')]}, subForest = []}]})
       ]
     ]
 
