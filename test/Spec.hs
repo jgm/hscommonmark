@@ -91,9 +91,17 @@ main = defaultMain $ testGroup "CommonMark tests" $
       ]
     , testGroup "parseInlines tests" [
         testCase "code span with final backslash" $
-          parseInlines [Token (1,0) (TBackticks 3),Token (1,3) (TStr "hi"),Token (1,5) (TEscaped '`'),Token (1,7) (TBackticks 2)]
+          forest (children (parseInlines (tokenize "``hi\\``")))
           @?=
-          fromTree (Node {rootLabel = Elt {eltType = Inlines, delimToks = [], contentToks = []}, subForest = [Node {rootLabel = Elt {eltType = Code, delimToks = [Token (1,0) (TBackticks 3),Token (1,6) (TBackticks 3)], contentToks = [Token (1,3) (TStr "hi"),Token (1,5) (TSym '\\')]}, subForest = []}]})
+          [Node {rootLabel = Elt {eltType = Code, delimToks = [Token (1,0) (TBackticks 2),Token (1,5) (TBackticks 2)], contentToks = [Token (1,2) (TStr "hi"),Token (1,4) (TSym '\\')]}, subForest = []}]
+      , testCase "3 blanks + newline = linebreak" $
+          forest (children (parseInlines (tokenize "hi   \nthere")))
+          @?=
+          [Node {rootLabel = Elt {eltType = Txt, delimToks = [], contentToks = [Token (1,0) (TStr "hi")]}, subForest = []},Node {rootLabel = Elt {eltType = Linebreak, delimToks = [], contentToks = [Token (1,2) TSpace,Token (1,3) TSpace,Token (1,4) TSpace,Token (1,5) (TEndline LF)]}, subForest = []},Node {rootLabel = Elt {eltType = Txt, delimToks = [], contentToks = [Token (2,0) (TStr "there")]}, subForest = []}]
+      , testCase "backslash + newline = linebreak" $
+          forest (children (parseInlines (tokenize "hi\\\nthere")))
+          @?=
+          [Node {rootLabel = Elt {eltType = Txt, delimToks = [], contentToks = [Token (1,0) (TStr "hi")]}, subForest = []},Node {rootLabel = Elt {eltType = Linebreak, delimToks = [Token (1,2) (TSym '\\')], contentToks = [Token (1,3) (TEndline LF)]}, subForest = []},Node {rootLabel = Elt {eltType = Txt, delimToks = [], contentToks = [Token (2,0) (TStr "there")]}, subForest = []}]
       ]
     ]
 

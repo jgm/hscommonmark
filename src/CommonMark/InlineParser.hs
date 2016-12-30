@@ -8,11 +8,7 @@ import Text.HTML.TagSoup (Tag(..), parseTags)
 
 -- TODO
 -- [ ] reference map param to parseInlines?
--- [x] resolve escapes
--- [x] inline HTML
--- [ ] entities (should be recognized by tokenizer?)
 -- [ ] autolinks
--- [ ] handle two-space hard line breaks
 -- [ ] POSTPROCESSING: links and images
 -- [ ] POSTPROCESSING: emphasis and strong
 
@@ -40,8 +36,16 @@ tokensToNodes :: Bool -> [Token] -> [Tree Inline]
 tokensToNodes _ [] = []
 tokensToNodes nogt (t@(Token _ (TEndline _)) : ts) =
   mknode Softbreak [] [t] : tokensToNodes nogt ts
+tokensToNodes nogt (t@(Token _ (TSym '\\')) :
+                     el@(Token _ (TEndline _)) : ts) =
+  mknode Linebreak [t] [el] : tokensToNodes nogt ts
 tokensToNodes nogt (t@(Token _ TSpace) : ts) =
-  mknode Space [] [t] : tokensToNodes nogt ts
+  case span isSpaceTok ts of
+       (sps@(_:_:_), el@(Token _ (TEndline _)):rest) ->
+            mknode Linebreak [] (t:sps ++ [el]) : tokensToNodes nogt rest
+       _ -> mknode Space [] [t] : tokensToNodes nogt ts
+    where isSpaceTok (Token _ TSpace) = True
+          isSpaceTok _                = False
 tokensToNodes nogt (t@(Token pos (TBackticks n)) : ts) =
      case break (\(Token _ ty) -> ty == TBackticks n) (adjustBackticks ts) of
            (codetoks, (endbackticks:rest)) ->
