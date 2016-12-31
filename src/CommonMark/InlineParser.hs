@@ -11,7 +11,7 @@ import Text.HTML.TagSoup (Tag(..), parseTags)
 -- [ ] reference map param to parseInlines?
 -- [ ] autolinks
 -- [ ] note that we'll have to run undoEscapes on contents of
---     raw HTML, autolinks, <url> in links since escapes don't
+--     autolinks and <url> in links since escapes don't
 --     function in these contexts (unless we change that for <url>).
 -- [ ] POSTPROCESSING: links and images
 -- [ ] POSTPROCESSING: emphasis and strong
@@ -56,11 +56,11 @@ tokensToNodes nogt (t@(Token pos (TBackticks n)) : ts) =
             adjustBackticks (t:ts) = t : adjustBackticks ts
 tokensToNodes nogt (t@(Token pos (TSym '<')) : ts) =
   case break (\(Token _ ty) -> ty == TSym '>') ts of
-       (tagtoks, (gt:rest)) ->
-         (case parseTags (mconcat (map tokenToText (t : tagtoks ++ [gt]))) of
-              (TagOpen _ _:_) -> mknode HtmlInline [] (t : tagtoks ++ [gt])
-              (TagClose _:_) -> mknode HtmlInline [] (t : tagtoks ++ [gt])
-              (TagComment _:_) -> mknode HtmlInline [] (t : tagtoks ++ [gt])
+       (tagbody, (gt:rest)) -> let tagtoks = t : undoEscapes tagbody ++ [gt] in
+         (case parseTags (mconcat (map tokenToText tagtoks)) of
+              (TagOpen _ _:_) -> mknode HtmlInline [] tagtoks
+              (TagClose _:_) -> mknode HtmlInline [] tagtoks
+              (TagComment _:_) -> mknode HtmlInline [] tagtoks
               _ -> mknode Txt [] [t]) : tokensToNodes nogt rest
        _ -> mknode Txt [] [t] : tokensToNodes True ts
 tokensToNodes nogt (t:ts) =
