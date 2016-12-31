@@ -90,7 +90,11 @@ main = defaultMain $ testGroup "CommonMark tests" $
           Node {rootLabel = Elt {eltType = Document, delimToks = [], contentToks = []}, subForest = [Node {rootLabel = Elt {eltType = Paragraph, delimToks = [], contentToks = [Token (1,0) (TStr "a"),Token (1,1) (TEndline LF)]}, subForest = []}, Node {rootLabel = Elt {eltType = BlankLines, delimToks = [], contentToks = [Token (2,0) (TEndline LF)]}, subForest = []}, Node {rootLabel = Elt {eltType = Paragraph, delimToks = [], contentToks = [Token (3,0) (TStr "b")]}, subForest = []}]}
       ]
     , testGroup "parseInlines tests" [
-        testCase "code span with final backslash" $
+        testCase "code span with backslash + symbol" $
+          forest (children (parseInlines (tokenize "``h\\*``")))
+          @?=
+          [Node {rootLabel = Elt {eltType = Code, delimToks = [Token (1,0) (TBackticks 2),Token (1,5) (TBackticks 2)], contentToks = [Token (1,2) (TStr "h"),Token (1,3) (TStr "\\*")]}, subForest = []}]
+      , testCase "code span with final backslash" $
           forest (children (parseInlines (tokenize "``hi\\``")))
           @?=
           [Node {rootLabel = Elt {eltType = Code, delimToks = [Token (1,0) (TBackticks 2),Token (1,5) (TBackticks 2)], contentToks = [Token (1,2) (TStr "hi"),Token (1,4) (TSym '\\')]}, subForest = []}]

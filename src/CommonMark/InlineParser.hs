@@ -1,5 +1,6 @@
 module CommonMark.InlineParser ( parseInlines ) where
 import CommonMark.Types
+import qualified Data.Text as Text
 import Data.Tree
 import Data.Tree.Zipper
 import qualified Data.IntMap as IntMap
@@ -9,8 +10,9 @@ import Text.HTML.TagSoup (Tag(..), parseTags)
 -- TODO
 -- [ ] reference map param to parseInlines?
 -- [ ] autolinks
--- [ ] note that we'll have to reconvert Escape tokens to
---     Sym in code spans, autolinks, raw HTML, <url> in links.
+-- [ ] note that we'll have to run undoEscapes on contents of
+--     raw HTML, autolinks, <url> in links since escapes don't
+--     function in these contexts (unless we change that for <url>).
 -- [ ] POSTPROCESSING: links and images
 -- [ ] POSTPROCESSING: emphasis and strong
 
@@ -42,7 +44,7 @@ tokensToNodes nogt (t@(Token _ TSpace) : ts) =
 tokensToNodes nogt (t@(Token pos (TBackticks n)) : ts) =
      case break (\(Token _ ty) -> ty == TBackticks n) (adjustBackticks ts) of
            (codetoks, (endbackticks:rest)) ->
-                mknode Code [t, endbackticks] codetoks
+                mknode Code [t, endbackticks] (undoEscapes codetoks)
                 : tokensToNodes nogt rest
            _ -> mknode Txt [] [t] : tokensToNodes nogt ts
       where adjustBackticks :: [Token] -> [Token]
@@ -63,6 +65,11 @@ tokensToNodes nogt (t@(Token pos (TSym '<')) : ts) =
        _ -> mknode Txt [] [t] : tokensToNodes True ts
 tokensToNodes nogt (t:ts) =
   mknode Txt [] [t] : tokensToNodes nogt ts
+
+undoEscapes :: [Token] -> [Token]
+undoEscapes = map go
+  where go (Token pos (TEscaped c)) = Token pos (TStr (Text.pack ['\\',c]))
+        go t = t
 
 mknode :: InlineType -> [Token] -> [Token] -> Tree Inline
 mknode ty ds ts =
