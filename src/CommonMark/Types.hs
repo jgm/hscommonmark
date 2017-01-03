@@ -90,8 +90,10 @@ data InlineType = Inlines
                 | HtmlInline
                 | Emph
                 | Strong
-                | Link
-                | Image
+                | Link{ linkDestination :: Text
+                      , linkTitle :: Text }
+                | Image{ imageSource :: Text
+                       , imageTitle :: Text }
   deriving (Show, Read, Eq, Ord, Typeable, Data, Generic)
 
 type Block = Elt BlockType

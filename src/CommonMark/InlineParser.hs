@@ -1,18 +1,20 @@
 module CommonMark.InlineParser ( parseInlines ) where
 import CommonMark.Types
+import Data.Text (Text)
 import qualified Data.Text as Text
+import Data.Monoid
+import Control.Monad
 import Data.Tree
 import Data.Tree.Zipper
 import qualified Data.IntMap as IntMap
 import Data.List (foldl')
 import Text.HTML.TagSoup (Tag(..), parseTags)
+import Text.Parsec hiding (label)
+import Text.Parsec.Pos (newPos)
+import Data.Char (isAscii, isLetter, isSpace, isAlphaNum)
 
 -- TODO
 -- [ ] reference map param to parseInlines?
--- [ ] autolinks
--- [ ] note that we'll have to run undoEscapes on contents of
---     autolinks and <url> in links since escapes don't
---     function in these contexts (unless we change that for <url>).
 -- [ ] POSTPROCESSING: links and images
 -- [ ] POSTPROCESSING: emphasis and strong
 
@@ -56,12 +58,18 @@ tokensToNodes nogt (t@(Token pos (TBackticks n)) : ts) =
             adjustBackticks (t:ts) = t : adjustBackticks ts
 tokensToNodes nogt (t@(Token pos (TSym '<')) : ts) =
   case break (\(Token _ ty) -> ty == TSym '>') ts of
-       (tagbody, (gt:rest)) -> let tagtoks = t : undoEscapes tagbody ++ [gt] in
-         (case parseTags (mconcat (map tokenToText tagtoks)) of
-              (TagOpen _ _:_) -> mknode HtmlInline [] tagtoks
-              (TagClose _:_) -> mknode HtmlInline [] tagtoks
-              (TagComment _:_) -> mknode HtmlInline [] tagtoks
-              _ -> mknode Txt [] [t]) : tokensToNodes nogt rest
+       (tagbody, (gt:rest)) ->
+         let bodytoks = undoEscapes tagbody
+             tagtoks = t : bodytoks++ [gt]
+         in (case parseAutolink tagtoks of
+               Just lnk -> mknode Link{ linkDestination = lnk
+                                      , linkTitle =  mempty } [t, gt] bodytoks
+               Nothing ->
+                 case parseTags (mconcat (map tokenToText tagtoks)) of
+                    (TagOpen _ _:_) -> mknode HtmlInline [] tagtoks
+                    (TagClose _:_) -> mknode HtmlInline [] tagtoks
+                    (TagComment _:_) -> mknode HtmlInline [] tagtoks
+                    _ -> mknode Txt [] [t]) : tokensToNodes nogt rest
        _ -> mknode Txt [] [t] : tokensToNodes True ts
 tokensToNodes nogt (t:ts) =
   mknode Txt [] [t] : tokensToNodes nogt ts
@@ -126,3 +134,66 @@ findOpeningBracket treepos =
         Just tp   -> case contentToks (label tp) of
                           [Token _ (TSym '[')] -> Just tp
                           _ -> findOpeningBracket tp
+
+-- parsec parsers
+
+parseAutolink :: [Token] -> Maybe Text
+parseAutolink ts =
+  case parse pAutolink "source" ts of
+       Left _ -> Nothing
+       Right r -> Just r
+
+type Parser = Parsec [Token] ()
+
+pSat :: (Text -> Bool) -> Parser Text
+pSat pred =
+  token (Text.unpack . tokenToText) (\(Token (l,c) _) -> newPos "source" l c)
+     (\tok -> case tokenToText tok of
+                   s | pred s -> Just s
+                     | otherwise -> Nothing)
+
+pSatisfy :: (Token -> Bool) -> Parser Token
+pSatisfy pred =
+  token (Text.unpack . tokenToText) (\(Token (l,c) _) -> newPos "source" l c)
+     (\tok -> if pred tok then Just tok else Nothing)
+
+pSym :: Char -> Parser Token
+pSym c =
+  pSatisfy $ \tok -> case tok of
+                          Token _ (TSym d) | d == c -> True
+                          _ -> False
+
+pScheme :: Parser Text
+pScheme = do
+  x <- pSat $ \s -> Text.all (\c -> isAscii c && isAlphaNum c) s &&
+                         not (Text.null s) &&
+                         isLetter (Text.head s)
+  xs <- many $ pSat $ \s -> Text.all (\c -> isAscii c &&
+                                 (isAlphaNum c || c `elem` ['.','-','+'])) s
+  let scheme = mconcat (x:xs)
+  let slen = Text.length scheme
+  guard $ slen >= 2 && slen <= 32
+  return scheme
+
+pAbsoluteURI :: Parser Text
+pAbsoluteURI = do
+  sch <- pScheme
+  pSym ':'
+  rest <- many (pSat (\s -> not (Text.any isSpace s) &&
+                            not (Text.any (=='<') s) &&
+                            not (Text.any (=='>') s)))
+  return (sch <> ":" <> mconcat rest)
+
+pEmail :: Parser Text
+pEmail = do
+  mzero -- TODO
+  return mempty
+
+pAutolink :: Parser Text
+pAutolink = do
+  pSym '<'
+  res <- pAbsoluteURI <|> pEmail
+  pSym '>'
+  eof
+  return res
+
