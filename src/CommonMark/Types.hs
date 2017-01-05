@@ -13,7 +13,10 @@ module CommonMark.Types (
   , Block
   , Inline
   , BlockType(..)
-  , InlineType(..) ) where
+  , InlineType(..)
+  , Label
+  , RefMap
+  ) where
 
 import Data.Tree.Zipper
 import Data.Tree
@@ -21,6 +24,8 @@ import Data.Text (Text)
 import qualified Data.Text as Text
 import Data.Generics (Data, Typeable)
 import GHC.Generics (Generic)
+import Data.CaseInsensitive (CI, mk)
+import qualified Data.Map as Map
 
 data Token = Token Pos Tok
   deriving (Show, Read, Eq, Ord, Typeable, Data, Generic)
@@ -101,4 +106,8 @@ type Inline = Elt InlineType
 
 type BlockTree = TreePos Full Block
 type InlineTree = TreePos Full Inline
+
+type Label = CI Text
+
+type RefMap = Map.Map Label (Text, Text)
 
