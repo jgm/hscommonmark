@@ -182,7 +182,7 @@ pAbsoluteURI = do
   rest <- many (pSat (\s -> not (Text.any isSpace s) &&
                             not (Text.any (=='<') s) &&
                             not (Text.any (=='>') s)))
-  return (sch <> ":" <> mconcat rest)
+  return (sch <> Text.pack ":" <> mconcat rest)
 
 pEmail :: Parser Text
 pEmail = do
