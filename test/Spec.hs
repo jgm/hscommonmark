@@ -91,19 +91,19 @@ main = defaultMain $ testGroup "CommonMark tests" $
       ]
     , testGroup "parseInlines tests" [
         testCase "code span with backslash + symbol" $
-          forest (children (parseInlines (tokenize "``h\\*``")))
+          forest (children (parseInlines mempty (tokenize "``h\\*``")))
           @?=
           [Node {rootLabel = Elt {eltType = Code, delimToks = [Token (1,0) (TBackticks 2),Token (1,5) (TBackticks 2)], contentToks = [Token (1,2) (TStr "h"),Token (1,3) (TStr "\\*")]}, subForest = []}]
       , testCase "code span with final backslash" $
-          forest (children (parseInlines (tokenize "``hi\\``")))
+          forest (children (parseInlines mempty (tokenize "``hi\\``")))
           @?=
           [Node {rootLabel = Elt {eltType = Code, delimToks = [Token (1,0) (TBackticks 2),Token (1,5) (TBackticks 2)], contentToks = [Token (1,2) (TStr "hi"),Token (1,4) (TSym '\\')]}, subForest = []}]
       , testCase "3 blanks + newline = linebreak" $
-          forest (children (parseInlines (tokenize "hi   \nthere")))
+          forest (children (parseInlines mempty (tokenize "hi   \nthere")))
           @?=
           [Node {rootLabel = Elt {eltType = Txt, delimToks = [], contentToks = [Token (1,0) (TStr "hi")]}, subForest = []},Node {rootLabel = Elt {eltType = Linebreak, delimToks = [], contentToks = [Token (1,2) TSpace,Token (1,3) TSpace,Token (1,4) TSpace,Token (1,5) (TEndline LF)]}, subForest = []},Node {rootLabel = Elt {eltType = Txt, delimToks = [], contentToks = [Token (2,0) (TStr "there")]}, subForest = []}]
       , testCase "backslash + newline = linebreak" $
-          forest (children (parseInlines (tokenize "hi\\\nthere")))
+          forest (children (parseInlines mempty (tokenize "hi\\\nthere")))
           @?=
           [Node {rootLabel = Elt {eltType = Txt, delimToks = [], contentToks = [Token (1,0) (TStr "hi")]}, subForest = []},Node {rootLabel = Elt {eltType = Linebreak, delimToks = [Token (1,2) (TSym '\\')], contentToks = [Token (1,3) (TEndline LF)]}, subForest = []},Node {rootLabel = Elt {eltType = Txt, delimToks = [], contentToks = [Token (2,0) (TStr "there")]}, subForest = []}]
       ]

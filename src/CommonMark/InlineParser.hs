@@ -4,6 +4,7 @@ import Data.Text (Text)
 import qualified Data.Text as Text
 import Data.Monoid
 import Control.Monad
+import Control.Monad.Reader
 import Data.Tree
 import Data.Tree.Zipper
 import qualified Data.IntMap as IntMap
@@ -14,7 +15,6 @@ import Text.Parsec.Pos (newPos)
 import Data.Char (isAscii, isLetter, isSpace, isAlphaNum)
 
 -- TODO
--- [ ] reference map param to parseInlines?
 -- [ ] POSTPROCESSING: links and images
 -- [ ] POSTPROCESSING: emphasis and strong
 
@@ -22,33 +22,44 @@ import Data.Char (isAscii, isLetter, isSpace, isAlphaNum)
 -- and analyze the tokens in precedence order,
 -- breaking them into subtrees and assigning delimToks
 -- when appropriate.
-parseInlines :: [Token] -> TreePos Full Inline
-parseInlines ts = fromTree (Node Elt{ eltType = Inlines
-                                    , delimToks = []
-                                    , contentToks = []}
-                                  (tokensToNodes False ts))
+parseInlines :: RefMap -> [Token] -> TreePos Full Inline
+parseInlines refmap ts =
+  fromTree (Node Elt{ eltType = Inlines
+                    , delimToks = []
+                    , contentToks = []}
+                 (runReader (tokensToNodes ts)
+                    InlineConfig{
+                       refMap = refmap
+                     , noGreaterThan = False }))
+
+data InlineConfig = InlineConfig{
+          refMap :: RefMap
+        , noGreaterThan :: Bool
+        } deriving (Show)
+
+type InlineM = Reader InlineConfig
 
 -- nogt = no greater than sign in remaining input
-tokensToNodes :: Bool -> [Token] -> [Tree Inline]
-tokensToNodes _ [] = []
-tokensToNodes nogt (t@(Token _ (TEndline _)) : ts) =
-  mknode Softbreak [] [t] : tokensToNodes nogt ts
-tokensToNodes nogt (t@(Token _ (TSym '\\')) :
+tokensToNodes :: [Token] -> InlineM [Tree Inline]
+tokensToNodes [] = return []
+tokensToNodes (t@(Token _ (TEndline _)) : ts) =
+  (mknode Softbreak [] [t] :) <$> tokensToNodes ts
+tokensToNodes (t@(Token _ (TSym '\\')) :
                      el@(Token _ (TEndline _)) : ts) =
-  mknode Linebreak [t] [el] : tokensToNodes nogt ts
-tokensToNodes nogt (t@(Token _ TSpace) : ts) =
+  (mknode Linebreak [t] [el] :) <$> tokensToNodes ts
+tokensToNodes (t@(Token _ TSpace) : ts) =
   case span isSpaceTok ts of
        (sps@(_:_:_), el@(Token _ (TEndline _)):rest) ->
-            mknode Linebreak [] (t:sps ++ [el]) : tokensToNodes nogt rest
-       _ -> mknode Space [] [t] : tokensToNodes nogt ts
+            (mknode Linebreak [] (t:sps ++ [el]) :) <$> tokensToNodes rest
+       _ -> (mknode Space [] [t] :) <$> tokensToNodes ts
     where isSpaceTok (Token _ TSpace) = True
           isSpaceTok _                = False
-tokensToNodes nogt (t@(Token pos (TBackticks n)) : ts) =
+tokensToNodes (t@(Token pos (TBackticks n)) : ts) =
      case break (\(Token _ ty) -> ty == TBackticks n) (adjustBackticks ts) of
            (codetoks, (endbackticks:rest)) ->
-                mknode Code [t, endbackticks] (undoEscapes codetoks)
-                : tokensToNodes nogt rest
-           _ -> mknode Txt [] [t] : tokensToNodes nogt ts
+                (mknode Code [t, endbackticks] (undoEscapes codetoks) :) <$>
+                tokensToNodes rest
+           _ -> (mknode Txt [] [t] :) <$> tokensToNodes ts
       where adjustBackticks :: [Token] -> [Token]
             adjustBackticks [] = []
             adjustBackticks (Token pos (TEscaped '`') :
@@ -56,23 +67,30 @@ tokensToNodes nogt (t@(Token pos (TBackticks n)) : ts) =
               | m == n - 1 = Token pos (TSym '\\') :
                              Token (l, c - 1) (TBackticks n) : ts
             adjustBackticks (t:ts) = t : adjustBackticks ts
-tokensToNodes nogt (t@(Token pos (TSym '<')) : ts) =
-  case break (\(Token _ ty) -> ty == TSym '>') ts of
-       (tagbody, (gt:rest)) ->
-         let bodytoks = undoEscapes tagbody
-             tagtoks = t : bodytoks++ [gt]
-         in (case parseAutolink tagtoks of
-               Just lnk -> mknode Link{ linkDestination = lnk
-                                      , linkTitle =  mempty } [t, gt] bodytoks
-               Nothing ->
-                 case parseTags (mconcat (map tokenToText tagtoks)) of
-                    (TagOpen _ _:_) -> mknode HtmlInline [] tagtoks
-                    (TagClose _:_) -> mknode HtmlInline [] tagtoks
-                    (TagComment _:_) -> mknode HtmlInline [] tagtoks
-                    _ -> mknode Txt [] [t]) : tokensToNodes nogt rest
-       _ -> mknode Txt [] [t] : tokensToNodes True ts
-tokensToNodes nogt (t:ts) =
-  mknode Txt [] [t] : tokensToNodes nogt ts
+tokensToNodes (t@(Token pos (TSym '<')) : ts) = do
+  nogt <- asks noGreaterThan
+  if nogt
+     then (mknode Txt [] [t] :) <$> tokensToNodes ts
+     else
+      case break (\(Token _ ty) -> ty == TSym '>') ts of
+         (tagbody, (gt:rest)) ->
+           let bodytoks = undoEscapes tagbody
+               tagtoks = t : bodytoks++ [gt]
+           in ((case parseAutolink tagtoks of
+                 Just lnk -> mknode Link{ linkDestination = lnk
+                                        , linkTitle =  mempty } [t, gt]
+                                    bodytoks
+                 Nothing ->
+                   case parseTags (mconcat (map tokenToText tagtoks)) of
+                      (TagOpen _ _:_) -> mknode HtmlInline [] tagtoks
+                      (TagClose _:_) -> mknode HtmlInline [] tagtoks
+                      (TagComment _:_) -> mknode HtmlInline [] tagtoks
+                      _ -> mknode Txt [] [t]) :) <$> tokensToNodes rest
+         _ -> (mknode Txt [] [t] :) <$>
+                  local (\conf -> conf{ noGreaterThan = True })
+                  (tokensToNodes ts)
+tokensToNodes (t:ts) =
+  (mknode Txt [] [t] :) <$> tokensToNodes ts
 
 undoEscapes :: [Token] -> [Token]
 undoEscapes = map go
