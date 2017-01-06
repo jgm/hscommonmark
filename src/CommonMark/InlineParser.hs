@@ -4,7 +4,7 @@ import Data.Text (Text)
 import qualified Data.Text as Text
 import Data.Monoid
 import Control.Monad
-import Control.Monad.Reader
+import Control.Monad.RWS
 import Data.Tree
 import Data.Tree.Zipper
 import qualified Data.IntMap as IntMap
@@ -18,26 +18,37 @@ import Data.Char (isAscii, isLetter, isSpace, isAlphaNum)
 -- [ ] POSTPROCESSING: links and images
 -- [ ] POSTPROCESSING: emphasis and strong
 
+resolveLinksImages :: [Tree Inline] -> InlineM [Tree Inline]
+resolveLinksImages = return -- TODO
+
+resolveEmphasis :: [Tree Inline] -> InlineM [Tree Inline]
+resolveEmphasis = return -- TODO
+
 -- the idea here is that we'll start with startingTree,
 -- and analyze the tokens in precedence order,
 -- breaking them into subtrees and assigning delimToks
 -- when appropriate.
 parseInlines :: RefMap -> [Token] -> TreePos Full Inline
 parseInlines refmap ts =
-  fromTree (Node Elt{ eltType = Inlines
+  fromTree $ Node Elt{ eltType = Inlines
                     , delimToks = []
                     , contentToks = []}
-                 (runReader (tokensToNodes ts)
-                    InlineConfig{
-                       refMap = refmap
-                     , noGreaterThan = False }))
+                 $ fst
+                 $ evalRWS ((tokensToNodes
+                         >=> resolveLinksImages
+                         >=> resolveEmphasis) ts)
+                    InlineConfig{ refMap = refmap }
+                    InlineState{ noGreaterThan = False }
 
 data InlineConfig = InlineConfig{
           refMap :: RefMap
-        , noGreaterThan :: Bool
         } deriving (Show)
 
-type InlineM = Reader InlineConfig
+data InlineState = InlineState{
+          noGreaterThan :: Bool
+        } deriving (Show)
+
+type InlineM = RWS InlineConfig () InlineState
 
 -- nogt = no greater than sign in remaining input
 tokensToNodes :: [Token] -> InlineM [Tree Inline]
@@ -68,7 +79,7 @@ tokensToNodes (t@(Token pos (TBackticks n)) : ts) =
                              Token (l, c - 1) (TBackticks n) : ts
             adjustBackticks (t:ts) = t : adjustBackticks ts
 tokensToNodes (t@(Token pos (TSym '<')) : ts) = do
-  nogt <- asks noGreaterThan
+  nogt <- gets noGreaterThan
   if nogt
      then (mknode Txt [] [t] :) <$> tokensToNodes ts
      else
@@ -87,8 +98,8 @@ tokensToNodes (t@(Token pos (TSym '<')) : ts) = do
                       (TagComment _:_) -> mknode HtmlInline [] tagtoks
                       _ -> mknode Txt [] [t]) :) <$> tokensToNodes rest
          _ -> (mknode Txt [] [t] :) <$>
-                  local (\conf -> conf{ noGreaterThan = True })
-                  (tokensToNodes ts)
+                  (do modify (\st -> st{ noGreaterThan = True })
+                      tokensToNodes ts)
 tokensToNodes (t:ts) =
   (mknode Txt [] [t] :) <$> tokensToNodes ts
 
