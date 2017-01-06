@@ -18,11 +18,48 @@ import Data.Char (isAscii, isLetter, isSpace, isAlphaNum)
 -- [ ] POSTPROCESSING: links and images
 -- [ ] POSTPROCESSING: emphasis and strong
 
+traverseTreePos :: Monad m => (TreePos Full a -> m (TreePos Full a))
+                -> TreePos Full a -> m (TreePos Full a)
+traverseTreePos f tp = do
+  tp' <- f tp
+  tp'' <- case firstChild tp' of
+               Nothing -> return tp'
+               Just c  -> traverseTreePos f c
+  case next tp'' of
+       Just c  -> traverseTreePos f c
+       Nothing -> case parent tp'' of
+                       Just p  -> return p
+                       Nothing -> return (root tp'')
+
 resolveLinksImages :: TreePos Full Inline -> InlineM (TreePos Full Inline)
-resolveLinksImages = return -- TODO
+resolveLinksImages
+ = return -- TODO
 
 resolveEmphasis :: TreePos Full Inline -> InlineM (TreePos Full Inline)
-resolveEmphasis = return -- TODO
+resolveEmphasis tp =
+  case canCloseEmphasis tp of
+       Just (Token pos (TAsterisks n)) -> return tp -- TODO
+       Just (Token pos (TUnderscores n)) -> return tp -- TODO
+       _ -> return tp
+            -- state record of latest opener examined
+            -- if found, insert emph node, then if needed
+            -- insert a following Txt node with remainig
+            -- elements
+
+canCloseEmphasis :: TreePos Full Inline -> Maybe Token
+canCloseEmphasis tp =
+  case label tp of
+       Elt{ eltType = Txt
+          , delimToks = dts
+          , contentToks = [Token pos (TAsterisks n)] } ->
+        Just (Token pos (TAsterisks n))
+          -- TODO check all th econditions
+       Elt{ eltType = Txt
+          , delimToks = dts
+          , contentToks = [Token pos (TUnderscores n)] } ->
+        Just (Token pos (TUnderscores n))
+          -- TODO check all th econditions
+       _ -> Nothing
 
 -- the idea here is that we'll start with startingTree,
 -- and analyze the tokens in precedence order,
@@ -33,9 +70,8 @@ parseInlines refmap ts =
   fst $ evalRWS
           (  (tokensToNodes
           >=> return . toRootNode
-          >=> resolveLinksImages
-          >=> resolveEmphasis
-          >=> return . root)
+          >=> traverseTreePos resolveLinksImages
+          >=> traverseTreePos resolveEmphasis)
           ts)
           InlineConfig{ refMap = refmap }
           InlineState{ noGreaterThan = False }
@@ -118,47 +154,6 @@ mknode ty ds ts =
   Node Elt{ eltType = ty
           , delimToks = ds
           , contentToks = ts} []
-
--- iterate from startpos to endpos, deleting each
--- node and adding its contentsTok to contentsTok of
--- a new code node -- (except for startpos and endpos, which
--- go to delimsTok).  Then insert the new code node.
--- and return the paren
-
-canOpen :: TreePos Full Inline -> Bool
-canOpen treepos = undefined
-
-canClose :: TreePos Full Inline -> Bool
-canClose treepos = undefined
-
--- finds first closing delimiter run to the right of treepos
-findClosingDelimiterRun :: TreePos Full Inline
-                        -> Maybe (TreePos Full Inline)
-findClosingDelimiterRun treepos =
-  case next treepos of
-       Just tp | canClose tp -> Just tp
-               | otherwise  -> findClosingDelimiterRun tp
-       Nothing  -> Nothing
-
--- finds first matching opening delimiter run to the left of a closing
--- run
-findOpeningDelimiterRun :: TreePos Full Inline
-                        -> Maybe (TreePos Full Inline)
-findOpeningDelimiterRun treepos =
-  case contentToks (label treepos) of
-       [Token _ (TAsterisks n)]   -> go (TAsterisks n)   treepos
-       [Token _ (TUnderscores n)] -> go (TUnderscores n) treepos
-       _ -> Nothing
-  where go :: Tok -> TreePos Full Inline -> Maybe (TreePos Full Inline)
-        go tt treepos =
-          case prev treepos of
-                Just tp | canOpen tp  ->
-                  case (tt, contentToks (label tp)) of
-                       (TAsterisks n, [Token _ (TAsterisks m)]) -> Just tp
-                       (TUnderscores n, [Token _ (TUnderscores m)]) -> Just tp
-                       _ -> findOpeningDelimiterRun tp
-                        | otherwise -> findOpeningDelimiterRun tp
-                Nothing   -> Nothing
 
 -- finds first opening bracket to the left
 findOpeningBracket :: TreePos Full Inline -> Maybe (TreePos Full Inline)
