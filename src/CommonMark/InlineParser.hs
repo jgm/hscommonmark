@@ -18,10 +18,10 @@ import Data.Char (isAscii, isLetter, isSpace, isAlphaNum)
 -- [ ] POSTPROCESSING: links and images
 -- [ ] POSTPROCESSING: emphasis and strong
 
-resolveLinksImages :: [Tree Inline] -> InlineM [Tree Inline]
+resolveLinksImages :: TreePos Full Inline -> InlineM (TreePos Full Inline)
 resolveLinksImages = return -- TODO
 
-resolveEmphasis :: [Tree Inline] -> InlineM [Tree Inline]
+resolveEmphasis :: TreePos Full Inline -> InlineM (TreePos Full Inline)
 resolveEmphasis = return -- TODO
 
 -- the idea here is that we'll start with startingTree,
@@ -30,15 +30,20 @@ resolveEmphasis = return -- TODO
 -- when appropriate.
 parseInlines :: RefMap -> [Token] -> TreePos Full Inline
 parseInlines refmap ts =
-  fromTree $ Node Elt{ eltType = Inlines
-                    , delimToks = []
-                    , contentToks = []}
-                 $ fst
-                 $ evalRWS ((tokensToNodes
-                         >=> resolveLinksImages
-                         >=> resolveEmphasis) ts)
-                    InlineConfig{ refMap = refmap }
-                    InlineState{ noGreaterThan = False }
+  fst $ evalRWS
+          (  (tokensToNodes
+          >=> return . toRootNode
+          >=> resolveLinksImages
+          >=> resolveEmphasis
+          >=> return . root)
+          ts)
+          InlineConfig{ refMap = refmap }
+          InlineState{ noGreaterThan = False }
+     where toRootNode = fromTree .
+                        (Node Elt{
+                             eltType = Inlines
+                           , delimToks = []
+                           , contentToks = [] })
 
 data InlineConfig = InlineConfig{
           refMap :: RefMap
