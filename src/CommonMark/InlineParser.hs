@@ -16,9 +16,10 @@ import Data.Char (isAscii, isLetter, isSpace, isAlphaNum)
 
 import Debug.Trace
 
--- TODO
--- [ ] POSTPROCESSING: links and images
--- [ ] POSTPROCESSING: emphasis and strong
+-- TODO:
+-- [ ] implement resolveLinksImages
+-- [ ] check flankingness in canOpen, canClose
+-- [ ] check div 3 rule
 
 traverseTreePos :: Monad m => (TreePos Full a -> m (TreePos Full a))
                 -> TreePos Full a -> m (TreePos Full a)
