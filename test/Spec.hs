@@ -36,6 +36,11 @@ main = defaultMain $ testGroup "CommonMark tests" $
            ,Token (1,3) (TSym '?')
            ,Token (1,4) (TSym '@')
            ,Token (1,5) (TSym '=')]
+      , testCase "lexer handles asterisk runs" $
+          tokenize "**a***" @?=
+           [Token (1,0) (TAsterisks 2)
+           ,Token (1,2) (TStr "a")
+           ,Token (1,3) (TAsterisks 3)]
       , testCase "lexer handles empty input" $
           tokenize "" @?= []
       , testProperty "tokenToText round-trip" $

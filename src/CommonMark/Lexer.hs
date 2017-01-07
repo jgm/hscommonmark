@@ -22,6 +22,7 @@ getToken curline curcol inp =
      Nothing        -> Nothing
      Just (c, rest) -> Just $
        let pos = (curline, curcol)
+           len = Text.length rest
        in case c of
             '\n' -> (Token pos (TEndline LF), rest, curline + 1, 0)
             '\r' -> case Text.uncons rest of
@@ -32,14 +33,13 @@ getToken curline curcol inp =
             ' ' ->  (Token pos TSpace, rest, curline, curcol + 1)
             '\t' -> let increment = 4 - curcol `mod` 4
                     in  (Token pos TTab, rest, curline, curcol + increment)
-            '*' ->  let n = maybe 0 id (Text.findIndex (/='*') rest)
+            '*' ->  let n = maybe len id (Text.findIndex (/='*') rest)
                     in  (Token pos (TAsterisks (n+1)), Text.drop n rest,
                            curline, curcol + n + 1)
-            '_' ->  let n = maybe 0 id (Text.findIndex (/='_') rest)
+            '_' ->  let n = maybe len id (Text.findIndex (/='_') rest)
                     in  (Token pos (TUnderscores (n+1)), Text.drop n rest,
                           curline, curcol + n + 1)
-            '`' ->  let n = maybe (Text.length rest) id
-                                (Text.findIndex (/='`') rest)
+            '`' ->  let n = maybe len id (Text.findIndex (/='`') rest)
                     in  (Token pos (TBackticks (n+1)), Text.drop n rest,
                           curline, curcol + n + 1)
             '\\' -> case Text.uncons rest of
