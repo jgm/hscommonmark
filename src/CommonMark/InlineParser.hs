@@ -37,29 +37,48 @@ resolveLinksImages
 
 resolveEmphasis :: TreePos Full Inline -> InlineM (TreePos Full Inline)
 resolveEmphasis tp =
-  case canCloseEmphasis tp of
-       Just (Token pos (TAsterisks n)) -> return tp -- TODO
-       Just (Token pos (TUnderscores n)) -> return tp -- TODO
-       _ -> return tp
+  if canCloseEmphasis tp
+     then case findMatchingOpener tp of
+               Nothing  -> return tp
+               Just op  -> return tp -- TODO
+     else return tp
             -- state record of latest opener examined
             -- if found, insert emph node, then if needed
             -- insert a following Txt node with remainig
             -- elements
 
-canCloseEmphasis :: TreePos Full Inline -> Maybe Token
+findMatchingOpener :: TreePos Full Inline -> Maybe (TreePos Full Inline)
+findMatchingOpener tp =
+  case prev tp of
+       Just next ->
+         if next `canOpenFor` tp
+            then Just next
+            else findMatchingOpener next
+       Nothing -> Nothing
+
+canOpenFor :: TreePos Full Inline -> TreePos Full Inline -> Bool
+canOpenFor op cl =
+  case (contentToks (label cl), contentToks (label op)) of
+       ([Token pos1 (TAsterisks n1)],
+        [Token pos2 (TAsterisks n2)])   -> True
+        -- TODO we also need to check the rule of 3, and
+        -- flankingness, etc.  This is just to get started.
+       ([Token pos1 (TUnderscores n1)],
+        [Token pos2 (TUnderscores n2)]) -> True
+       _ -> False
+
+canCloseEmphasis :: TreePos Full Inline -> Bool
 canCloseEmphasis tp =
   case label tp of
        Elt{ eltType = Txt
           , delimToks = dts
-          , contentToks = [Token pos (TAsterisks n)] } ->
-        Just (Token pos (TAsterisks n))
+          , contentToks = [Token pos (TAsterisks n)] } -> True
           -- TODO check all th econditions
        Elt{ eltType = Txt
           , delimToks = dts
-          , contentToks = [Token pos (TUnderscores n)] } ->
-        Just (Token pos (TUnderscores n))
+          , contentToks = [Token pos (TUnderscores n)] } -> True
           -- TODO check all th econditions
-       _ -> Nothing
+       _ -> False
 
 -- the idea here is that we'll start with startingTree,
 -- and analyze the tokens in precedence order,
