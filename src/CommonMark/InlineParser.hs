@@ -14,6 +14,8 @@ import Text.Parsec hiding (label)
 import Text.Parsec.Pos (newPos)
 import Data.Char (isAscii, isLetter, isSpace, isAlphaNum)
 
+import Debug.Trace
+
 -- TODO
 -- [ ] POSTPROCESSING: links and images
 -- [ ] POSTPROCESSING: emphasis and strong
@@ -38,23 +40,134 @@ resolveLinksImages
 resolveEmphasis :: TreePos Full Inline -> InlineM (TreePos Full Inline)
 resolveEmphasis tp =
   if canCloseEmphasis tp
-     then case findMatchingOpener tp of
-               Nothing  -> return tp
-               Just op  -> return tp -- TODO
+     then
+       case findMatchingOpener tp of
+            Nothing  -> return tp
+            Just op  -> do
+              let optoks = contentToks (label op)
+              let cltoks = contentToks (label tp)
+              let (opchars, oppos) =
+                   case optoks of
+                        [Token pos (TAsterisks n)] -> (n, pos)
+                        [Token pos (TUnderscores n)] -> (n, pos)
+                        _ -> (0, (0,0)) -- should not happen
+              let (clchars, clpos) =
+                   case cltoks of
+                        [Token pos (TAsterisks n)] -> (n, pos)
+                        [Token pos (TUnderscores n)] -> (n, pos)
+                        _ -> (0, (0,0)) -- should not happen
+              let numchars = minimum [2, clchars, opchars]
+              {- This is the rule from cmark, which is odd:
+              let numchars = if clchars < 3 && opchars < 3
+                                then min clchars opchars
+                                else 2 - clchars `mod` 2
+              -}
+              let elttype = case numchars of
+                                 1 -> Emph
+                                 2 -> Strong
+                                 _ -> error "Something went wrong (numchars)"
+              let numchars = if elttype == Strong then 2 else 1
+              let (mbOp, opdelims) =
+                   case optoks of
+                        [Token (l,c) (TAsterisks n)]
+                          | n > numchars ->
+                            (Just Elt
+                                  { eltType = Txt
+                                  , delimToks = []
+                                  , contentToks =
+                                     [Token (l,c)
+                                       (TAsterisks (n - numchars))]},
+                             [Token (l, c + n - numchars)
+                                (TAsterisks numchars)])
+                          | otherwise -> (Nothing, optoks)
+                        [Token (l,c) (TUnderscores n)]
+                          | n > numchars ->
+                            (Just Elt
+                                  { eltType = Txt
+                                  , delimToks = []
+                                  , contentToks =
+                                     [Token (l,c)
+                                       (TUnderscores (n - numchars))]},
+                             [Token (l, c + n - numchars)
+                                       (TUnderscores numchars)])
+                          | otherwise -> (Nothing, optoks)
+                        _ -> (Nothing, []) -- should not happen
+              let (mbCl, cldelims) =
+                   case cltoks of
+                        [Token (l,c) (TAsterisks n)]
+                          | n > numchars ->
+                            (Just Elt
+                                  { eltType = Txt
+                                  , delimToks = []
+                                  , contentToks =
+                                     [Token (l, c + numchars)
+                                       (TAsterisks (n - numchars))]},
+                              [Token (l, c) (TAsterisks numchars)])
+                          | otherwise -> (Nothing, cltoks)
+                        [Token (l,c) (TUnderscores n)]
+                          | n > numchars ->
+                            (Just Elt
+                                  { eltType = Txt
+                                  , delimToks = []
+                                  , contentToks =
+                                     [Token (l, c + numchars)
+                                       (TUnderscores (n - numchars))]},
+                             [Token (l, c) (TUnderscores numchars)])
+                          | otherwise -> (Nothing, cltoks)
+                        _ -> (Nothing, []) -- should not happen
+
+              let (contentnodes, tp') = eatNodesBetween op tp
+              let newnode = Node (Elt{ eltType = elttype
+                                     , delimToks = opdelims ++ cldelims
+                                     , contentToks = []}) contentnodes
+              return $ insert newnode
+                     $ shrinkRight mbCl
+                     $ shrinkLeft mbOp tp'
+
      else return tp
             -- state record of latest opener examined
             -- if found, insert emph node, then if needed
             -- insert a following Txt node with remainig
             -- elements
 
+shrinkLeft :: Maybe Inline -> TreePos Empty Inline -> TreePos Empty Inline
+shrinkLeft mbElt tp =
+  case prevTree tp of
+       Just t -> case mbElt of
+                      Nothing  -> delete t
+                      Just elt -> nextSpace $ modifyLabel (const elt) t
+       Nothing -> tp
+
+shrinkRight :: Maybe Inline -> TreePos Empty Inline -> TreePos Empty Inline
+shrinkRight mbElt tp =
+  case nextTree tp of
+       Just t -> case mbElt of
+                      Nothing  -> delete t
+                      Just elt -> prevSpace $ modifyLabel (const elt) t
+       Nothing -> tp
+
+eatNodesBetween :: (Eq a, Show a)
+                => TreePos Full a
+                -> TreePos Full a
+                -> ([Tree a], TreePos Empty a)
+eatNodesBetween op cl = go ([], prevSpace cl)
+  where go (accum, tp) =
+          case prevTree tp of
+               Just n
+                  | label n == stoplabel -> (accum, tp)
+                  | otherwise            -> go (tree n : accum, delete n)
+               Nothing -> ([], tp) -- should not happen
+        stoplabel = label op
+
 findMatchingOpener :: TreePos Full Inline -> Maybe (TreePos Full Inline)
-findMatchingOpener tp =
-  case prev tp of
-       Just next ->
-         if next `canOpenFor` tp
-            then Just next
-            else findMatchingOpener next
-       Nothing -> Nothing
+findMatchingOpener tp = gofind (`canOpenFor` tp) tp
+  where gofind pred tp =
+         case prev tp of
+                Just pr ->
+                  if pred pr
+                     then Just pr
+                     else gofind pred pr
+                Nothing -> Nothing
 
 canOpenFor :: TreePos Full Inline -> TreePos Full Inline -> Bool
 canOpenFor op cl =
