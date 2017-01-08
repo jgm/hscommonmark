@@ -2,6 +2,7 @@ module CommonMark.InlineParser ( parseInlines ) where
 import CommonMark.Types
 import Data.Text (Text)
 import qualified Data.Text as Text
+import qualified Data.Set as Set
 import Data.Monoid
 import Control.Monad
 import Control.Monad.RWS
@@ -19,7 +20,7 @@ import Debug.Trace
 -- TODO:
 -- [x] check flankingness in canOpen, canClose
 -- [x] check div 3 rule
--- [ ] keep track in state of how far you've looked for openers
+-- [x] keep track in state of how far you've looked for openers
 -- [ ] implement resolveLinksImages
 -- [ ] email autolinks
 --
@@ -134,19 +135,40 @@ eatNodesBetween op cl = go ([], prevSpace cl)
 findMatchingOpener :: TreePos Full Inline
                    -> InlineM (Maybe (TreePos Full Inline))
 findMatchingOpener tp = do
-  -- TODO look in state to see how far we've searched before for this kind of op
-  gofind (`canOpenFor` tp) tp
-   where gofind pred tp =
+  searched <- getSearched tp
+  if searched
+     then return Nothing
+     else gofind tp tp
+   where gofind cl tp =
           case prev tp of
-                Just pr ->
-                  if pred pr
-                     then do
-                       -- TODO update state
-                       return $ Just pr
-                     else gofind pred pr
+                Just pr
+                  | pr `canOpenFor` cl -> return $ Just pr
+                  | otherwise          -> gofind cl pr
                 Nothing -> do
-                       -- TODO update state
-                       return Nothing
+                  updateSearched cl
+                  return Nothing
+
+getSearched :: TreePos Full Inline -> InlineM Bool
+getSearched tp = do
+  searchedSet <- gets openerSearched
+  case contentToks (label tp) of
+       [Token _ (TEmphChars ec o _)] -> return $
+          case (ec, o `mod` 3) of
+               (Asterisk, i)   -> ('*', i) `Set.member` searchedSet
+               (Underscore, _) -> ('_', 0) `Set.member` searchedSet
+       _ -> return False
+
+updateSearched :: TreePos Full Inline -> InlineM ()
+updateSearched cl =
+  case contentToks (label cl) of
+       [Token _ (TEmphChars ec o _)] ->
+          let key = case ec of
+                        Asterisk   -> ('*', o `mod` 3)
+                        Underscore -> ('_', 0)
+          in  modify $ \st ->
+                st{ openerSearched = Set.insert key
+                       (openerSearched st) }
+       _ -> return ()
 
 flankingness :: TreePos Full Inline -> (Bool, Bool)
 flankingness tp =
@@ -233,13 +255,7 @@ parseInlines refmap ts =
           ts)
           InlineConfig{ refMap = refmap }
           InlineState{ noGreaterThan = False
-                     , openerSearchPos = OpenerSearchPos{
-                           asteriskCloser0  = (0,0)
-                         , asteriskCloser1  = (0,0)
-                         , asteriskCloser2  = (0,0)
-                         , underscoreCloser = (0,0)
-                         , bracketCloser    = (0,0)
-                     }}
+                     , openerSearched = mempty }
      where toRootNode = fromTree .
                         (Node Elt{
                              eltType = Inlines
@@ -252,16 +268,8 @@ data InlineConfig = InlineConfig{
 
 data InlineState = InlineState{
           noGreaterThan   :: Bool
-        , openerSearchPos :: OpenerSearchPos
+        , openerSearched  :: Set.Set (Char, Int)
         } deriving (Show)
-
-data OpenerSearchPos = OpenerSearchPos{
-         asteriskCloser0  :: Pos
-       , asteriskCloser1  :: Pos
-       , asteriskCloser2  :: Pos
-       , underscoreCloser :: Pos
-       , bracketCloser    :: Pos
-       } deriving (Show)
 
 type InlineM = RWS InlineConfig () InlineState
 
