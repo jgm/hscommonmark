@@ -1,6 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE FlexibleInstances #-}
 module CommonMark.Types (
     Token(..)
   , tokenToText
@@ -21,6 +22,7 @@ module CommonMark.Types (
 
 import Data.Tree.Zipper
 import Data.Tree
+import Data.Functor.Classes (liftCompare)
 import Data.Text (Text)
 import qualified Data.Text as Text
 import Data.Generics (Data, Typeable)
@@ -90,7 +92,7 @@ data BlockType = Document
                | HtmlBlock
                | ThematicBreak
                | BlankLines
-  deriving (Show, Read, Eq, Typeable, Data, Generic)
+  deriving (Show, Read, Eq, Ord, Typeable, Data, Generic)
 
 data InlineType = Inlines
                 | Txt
@@ -109,6 +111,9 @@ data InlineType = Inlines
 
 type Block = Elt BlockType
 type Inline = Elt InlineType
+
+instance Ord (Tree Inline) where
+   compare = liftCompare compare
 
 type BlockTree = TreePos Full Block
 

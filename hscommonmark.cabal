@@ -26,7 +26,7 @@ library
      other-modules:    Prelude
   build-depends:       base >= 4.7 && < 5
                      , text
-                     , containers
+                     , containers >= 0.5.9
                      , syb
                      , split
                      , rosezipper

@@ -2,5 +2,6 @@ resolver: lts-7.14
 packages:
 - '.'
 extra-deps:
+- containers-0.5.9.1
 flags: {}
 extra-package-dbs: []
