@@ -17,9 +17,10 @@ import Data.Char (isAscii, isLetter, isSpace, isAlphaNum)
 import Debug.Trace
 
 -- TODO:
--- [ ] implement resolveLinksImages
 -- [ ] check flankingness in canOpen, canClose
 -- [ ] check div 3 rule
+-- [ ] keep track in state of how far you've looked for openers
+-- [ ] implement resolveLinksImages
 
 traverseTreePos :: Monad m => (TreePos Full a -> m (TreePos Full a))
                 -> TreePos Full a -> m (TreePos Full a)
@@ -34,6 +35,9 @@ traverseTreePos f tp = do
                        Just p  -> return p
                        Nothing -> return (root tp'')
 
+impossible :: a
+impossible = error "The impossible happened"
+
 resolveLinksImages :: TreePos Full Inline -> InlineM (TreePos Full Inline)
 resolveLinksImages
  = return -- TODO
@@ -47,104 +51,89 @@ resolveEmphasis tp =
             Just op  -> do
               let optoks = contentToks (label op)
               let cltoks = contentToks (label tp)
-              let (opchars, oppos) =
-                   case optoks of
+              let getTokInfo ts =
+                   case ts of
                         [Token pos (TAsterisks n)] -> (n, pos)
                         [Token pos (TUnderscores n)] -> (n, pos)
-                        _ -> (0, (0,0)) -- should not happen
-              let (clchars, clpos) =
-                   case cltoks of
-                        [Token pos (TAsterisks n)] -> (n, pos)
-                        [Token pos (TUnderscores n)] -> (n, pos)
-                        _ -> (0, (0,0)) -- should not happen
+                        _ -> impossible
+              let (opchars, oppos) = getTokInfo optoks
+              let (clchars, clpos) = getTokInfo cltoks
               let numchars = minimum [2, clchars, opchars]
-              {- This is the rule from cmark, which is odd:
-              let numchars = if clchars < 3 && opchars < 3
-                                then min clchars opchars
-                                else 2 - clchars `mod` 2
-              -}
               let elttype = case numchars of
                                  1 -> Emph
                                  2 -> Strong
-                                 _ -> error "Something went wrong (numchars)"
+                                 _ -> impossible
               let numchars = if elttype == Strong then 2 else 1
-              let (mbOp, opdelims) =
+              let opdelims =
                    case optoks of
                         [Token (l,c) (TAsterisks n)]
                           | n > numchars ->
-                            (Just Elt
-                                  { eltType = Txt
-                                  , delimToks = []
-                                  , contentToks =
-                                     [Token (l,c)
-                                       (TAsterisks (n - numchars))]},
-                             [Token (l, c + n - numchars)
-                                (TAsterisks numchars)])
-                          | otherwise -> (Nothing, optoks)
+                            [Token (l, c + n - numchars) (TAsterisks numchars)]
+                          | otherwise -> optoks
                         [Token (l,c) (TUnderscores n)]
                           | n > numchars ->
-                            (Just Elt
-                                  { eltType = Txt
-                                  , delimToks = []
-                                  , contentToks =
-                                     [Token (l,c)
-                                       (TUnderscores (n - numchars))]},
-                             [Token (l, c + n - numchars)
-                                       (TUnderscores numchars)])
-                          | otherwise -> (Nothing, optoks)
-                        _ -> (Nothing, []) -- should not happen
-              let (mbCl, cldelims) =
+                            [Token (l, c + n - numchars)
+                               (TUnderscores numchars)]
+                          | otherwise -> optoks
+                        _ -> impossible
+              let cldelims =
                    case cltoks of
                         [Token (l,c) (TAsterisks n)]
                           | n > numchars ->
-                            (Just Elt
-                                  { eltType = Txt
-                                  , delimToks = []
-                                  , contentToks =
-                                     [Token (l, c + numchars)
-                                       (TAsterisks (n - numchars))]},
-                              [Token (l, c) (TAsterisks numchars)])
-                          | otherwise -> (Nothing, cltoks)
+                              [Token (l, c) (TAsterisks numchars)]
+                          | otherwise -> cltoks
                         [Token (l,c) (TUnderscores n)]
                           | n > numchars ->
-                            (Just Elt
-                                  { eltType = Txt
-                                  , delimToks = []
-                                  , contentToks =
-                                     [Token (l, c + numchars)
-                                       (TUnderscores (n - numchars))]},
-                             [Token (l, c) (TUnderscores numchars)])
-                          | otherwise -> (Nothing, cltoks)
-                        _ -> (Nothing, []) -- should not happen
+                             [Token (l, c) (TUnderscores numchars)]
+                          | otherwise -> cltoks
+                        _ -> impossible
 
               let (contentnodes, tp') = eatNodesBetween op tp
               let newnode = Node (Elt{ eltType = elttype
                                      , delimToks = opdelims ++ cldelims
                                      , contentToks = []}) contentnodes
               return $ insert newnode
-                     $ shrinkRight mbCl
-                     $ shrinkLeft mbOp tp'
+                     $ shrinkRight numchars
+                     $ shrinkLeft numchars
+                     $ tp'
 
      else return tp
-            -- state record of latest opener examined
-            -- if found, insert emph node, then if needed
-            -- insert a following Txt node with remainig
-            -- elements
 
-shrinkLeft :: Maybe Inline -> TreePos Empty Inline -> TreePos Empty Inline
-shrinkLeft mbElt tp =
+shrinkLeft :: Int -> TreePos Empty Inline -> TreePos Empty Inline
+shrinkLeft numchars tp =
   case prevTree tp of
-       Just t -> case mbElt of
-                      Nothing  -> delete t
-                      Just elt -> nextSpace $ modifyLabel (const elt) t
+       Just t ->
+         case contentToks (label t) of
+              [Token (l, c) (TAsterisks n)]
+                | n > numchars -> nextSpace $ modifyLabel (\elt ->
+                          elt{ contentToks =
+                              [Token (l, c) (TAsterisks (n - numchars))] }) t
+                | otherwise -> delete t
+              [Token (l, c) (TUnderscores n)]
+                | n > numchars -> nextSpace $ modifyLabel (\elt ->
+                          elt{ contentToks =
+                              [Token (l, c) (TUnderscores (n - numchars))] }) t
+                | otherwise -> delete t
+              _ -> tp
        Nothing -> tp
 
-shrinkRight :: Maybe Inline -> TreePos Empty Inline -> TreePos Empty Inline
-shrinkRight mbElt tp =
+shrinkRight :: Int -> TreePos Empty Inline -> TreePos Empty Inline
+shrinkRight numchars tp =
   case nextTree tp of
-       Just t -> case mbElt of
-                      Nothing  -> delete t
-                      Just elt -> prevSpace $ modifyLabel (const elt) t
+       Just t ->
+         case contentToks (label t) of
+              [Token (l, c) (TAsterisks n)]
+                | n > numchars -> prevSpace $ modifyLabel (\elt ->
+                          elt{ contentToks = [Token (l, c + numchars)
+                                (TAsterisks (n - numchars))] }) t
+                | otherwise -> delete t
+              [Token (l, c) (TUnderscores n)]
+                | n > numchars -> prevSpace $ modifyLabel (\elt ->
+                          elt{ contentToks =
+                                [Token (l, c + numchars)
+                                (TUnderscores (n - numchars))] }) t
+                | otherwise -> delete t
+              _ -> tp
        Nothing -> tp
 
 eatNodesBetween :: (Eq a, Show a)
@@ -157,7 +146,7 @@ eatNodesBetween op cl = go ([], prevSpace cl)
                Just n
                   | label n == stoplabel -> (accum, tp)
                   | otherwise            -> go (tree n : accum, delete n)
-               Nothing -> ([], tp) -- should not happen
+               Nothing -> impossible
         stoplabel = label op
 
 findMatchingOpener :: TreePos Full Inline -> Maybe (TreePos Full Inline)
