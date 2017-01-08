@@ -159,11 +159,23 @@ findMatchingOpener tp = gofind (`canOpenFor` tp) tp
                      else gofind pred pr
                 Nothing -> Nothing
 
+isLeftFlanking :: TreePos Full Inline -> Bool
+isLeftFlanking tp = True -- TODO
+
+isRightFlanking :: TreePos Full Inline -> Bool
+isRightFlanking tp = True -- TODO
+
 canOpenFor :: TreePos Full Inline -> TreePos Full Inline -> Bool
 canOpenFor op cl =
   case (contentToks (label cl), contentToks (label op)) of
        ([Token pos1 (TAsterisks n1)],
-        [Token pos2 (TAsterisks n2)])   -> True
+        [Token pos2 (TAsterisks n2)])   ->
+          isLeftFlanking op && isRightFlanking cl
+          && if isLeftFlanking cl || isRightFlanking op
+                then (n1 + n2) `mod` 3 /= 0
+                -- TODO: not right, since it's the original
+                -- delim run lengths not the adjusted ones that matter!
+                else  True
         -- TODO we also need to check the rule of 3, and
         -- flankingness, etc.  This is just to get started.
        ([Token pos1 (TUnderscores n1)],
