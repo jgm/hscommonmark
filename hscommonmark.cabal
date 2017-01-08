@@ -17,6 +17,7 @@ library
   hs-source-dirs:      src
   exposed-modules:     CommonMark
                        CommonMark.Types
+                       CommonMark.Parser
                        CommonMark.BlockParser
                        CommonMark.InlineParser
                        CommonMark.Util
