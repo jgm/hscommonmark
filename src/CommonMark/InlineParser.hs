@@ -17,11 +17,12 @@ import Data.Char (isAscii, isLetter, isSpace, isAlphaNum, isPunctuation)
 import Debug.Trace
 
 -- TODO:
--- [ ] check flankingness in canOpen, canClose
--- [ ] check div 3 rule
+-- [x] check flankingness in canOpen, canClose
+-- [x] check div 3 rule
 -- [ ] keep track in state of how far you've looked for openers
 -- [ ] implement resolveLinksImages
-
+-- [ ] email autolinks
+--
 traverseTreePos :: Monad m => (TreePos Full a -> m (TreePos Full a))
                 -> TreePos Full a -> m (TreePos Full a)
 traverseTreePos f tp = do
@@ -45,8 +46,9 @@ resolveLinksImages
 resolveEmphasis :: TreePos Full Inline -> InlineM (TreePos Full Inline)
 resolveEmphasis tp =
   if canCloseEmphasis tp
-     then
-       case findMatchingOpener tp of
+     then do
+       res <- findMatchingOpener tp
+       case res of
             Nothing  -> return tp
             Just op  -> do
               let optoks = contentToks (label op)
@@ -129,15 +131,17 @@ eatNodesBetween op cl = go ([], prevSpace cl)
                Nothing -> impossible
         stoplabel = label op
 
-findMatchingOpener :: TreePos Full Inline -> Maybe (TreePos Full Inline)
-findMatchingOpener tp = gofind (`canOpenFor` tp) tp
-  where gofind pred tp =
-         case prev tp of
+findMatchingOpener :: TreePos Full Inline
+                   -> InlineM (Maybe (TreePos Full Inline))
+findMatchingOpener tp = do
+  gofind (`canOpenFor` tp) tp
+   where gofind pred tp =
+          case prev tp of
                 Just pr ->
                   if pred pr
-                     then Just pr
+                     then return $ Just pr
                      else gofind pred pr
-                Nothing -> Nothing
+                Nothing -> return Nothing
 
 flankingness :: TreePos Full Inline -> (Bool, Bool)
 flankingness tp =
