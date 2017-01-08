@@ -14,5 +14,5 @@ addChild new treepos =
 showTree :: forall a . (Show a) => Tree (Elt a) -> IO ()
 showTree = putStrLn . drawTree .
   fmap (\(Elt tt _ ts) ->
-    show tt ++ " " ++ show (tokensToText ts))
+    (unwords $ take 1 $ words $ show tt) ++ " " ++ show (tokensToText ts))
 

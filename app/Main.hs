@@ -9,5 +9,9 @@ import CommonMark.Parser
 import CommonMark.Render.Html5
 
 main :: IO ()
-main = T.getContents >>= TL.putStrLn . renderHtml5 . parseCommonMark
+main = do
+  inp <- T.getContents
+  let parsed = parseCommonMark inp
+  showTree parsed
+  TL.putStrLn $ renderHtml5 parsed
 
