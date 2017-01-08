@@ -1,7 +1,6 @@
 {-# LANGUAGE RankNTypes #-}
 module CommonMark.BlockParser (
-    BlockTree
-  , Block
+    Block
   , Elt(..)
   , BlockType(..)
   , gobbleSpaces
@@ -12,6 +11,7 @@ module CommonMark.BlockParser (
 where
 import CommonMark.Types
 import CommonMark.Lexer (tokenize)
+import CommonMark.InlineParser (emptyInlines)
 import Control.Monad
 import Data.Tree.Zipper
 import Data.Tree
@@ -39,7 +39,7 @@ splitLines = split (keepDelimsR (whenElt isNewline))
               where isNewline (Token _ (TEndline _)) = True
                     isNewline _                      = False
 
-parseLine :: BlockTree -> Line -> BlockTree
+parseLine :: TreePos Full Block -> Line -> TreePos Full Block
 parseLine treepos line =
   case analyzeLine (reverse (ancestors treepos)) line of
        Nothing  -> error "analyzeLine returned Nothing" -- shouldn't happen
@@ -49,7 +49,7 @@ parseLine treepos line =
                                else (lastMatched, rest)
          in  addTokens tip rest'
 
-isContainerBlock :: BlockTree -> Bool
+isContainerBlock :: TreePos Full Block -> Bool
 isContainerBlock bt = case eltType (label bt) of
                       Document   -> True
                       BlockQuote -> True
@@ -57,17 +57,17 @@ isContainerBlock bt = case eltType (label bt) of
                       Item       -> True
                       _          -> False
 
-acceptsTokens :: BlockTree -> Bool
+acceptsTokens :: TreePos Full Block -> Bool
 acceptsTokens bt = case eltType (label bt) of
-                   Paragraph   -> True
+                   Paragraph{} -> True
                    BlankLines  -> True
-                   Heading     -> True
+                   Heading{}   -> True
                    CodeBlock{} -> True
                    HtmlBlock   -> True
                    _           -> False
 
 -- We can assume that the treepos is a container block.
-openNewBlocks :: BlockTree -> Line -> (BlockTree, Line)
+openNewBlocks :: TreePos Full Block -> Line -> (TreePos Full Block, Line)
 openNewBlocks treepos line =
   case matchNewBlock line of
        Just (delim, rest, newblock) ->
@@ -75,11 +75,11 @@ openNewBlocks treepos line =
        Nothing -> (treepos, line)
 
 -- and return the child
-addChild :: Tree Block -> BlockTree -> BlockTree
+addChild :: Tree Block -> TreePos Full Block -> TreePos Full Block
 addChild newblock treepos =
   insert newblock (Data.Tree.Zipper.last (children treepos))
 
-addTokens :: BlockTree -> Line -> BlockTree
+addTokens :: TreePos Full Block -> Line -> TreePos Full Block
 addTokens treepos line =
   if acceptsTokens treepos
      then addContentToks line treepos
@@ -93,14 +93,13 @@ addTokens treepos line =
                label{ contentToks = contentToks label ++ ts })
 
 -- find a Paragraph that is the descendent of treepos by lastChild.
-findOpenParagraph :: BlockTree -> Maybe BlockTree
-findOpenParagraph treepos
-  | eltType (label treepos) == Paragraph =
-    Just treepos
-  | otherwise =
-    case lastChild treepos of
-         Just child -> findOpenParagraph child
-         Nothing    -> Nothing
+findOpenParagraph :: TreePos Full Block -> Maybe (TreePos Full Block)
+findOpenParagraph treepos =
+  case eltType (label treepos) of
+       Paragraph{} -> Just treepos
+       _ -> case lastChild treepos of
+                 Just child -> findOpenParagraph child
+                 Nothing    -> Nothing
 
 matchNewBlock :: [Token] -> Maybe ([Token], [Token], Tree Block)
 matchNewBlock ts =
@@ -131,7 +130,8 @@ emptyBlockQuote :: Tree Block
 emptyBlockQuote = Node (Elt BlockQuote [] []) []
 
 emptyParagraph :: Tree Block
-emptyParagraph = Node (Elt Paragraph [] []) []
+emptyParagraph = Node (Elt Paragraph{ paragraphContents = emptyInlines }
+   [] []) []
 
 emptyBlankLines :: Tree Block
 emptyBlankLines = Node (Elt BlankLines [] []) []
@@ -139,7 +139,7 @@ emptyBlankLines = Node (Elt BlankLines [] []) []
 -- | Analyze line and return treepos of last matched
 -- container node plus the remainder of the line,
 -- after matched delimiters.
-analyzeLine :: [BlockTree] -> Line -> Maybe (BlockTree, Line)
+analyzeLine :: [TreePos Full Block] -> Line -> Maybe (TreePos Full Block, Line)
 analyzeLine [] line = Nothing
 analyzeLine (n:ns) line =
   case matchMarker n line of
@@ -151,12 +151,12 @@ analyzeLine (n:ns) line =
                                   Just (ds', l') -> go rest
                                                     (addDelims ds' k, l')
 
-addDelims :: [Token] -> BlockTree -> BlockTree
+addDelims :: [Token] -> TreePos Full Block -> TreePos Full Block
 addDelims [] treepos = treepos
 addDelims ds treepos = modifyLabel
   (\label -> label{ delimToks = delimToks label ++ ds }) treepos
 
-matchMarker :: BlockTree -> [Token] -> Maybe ([Token], [Token])
+matchMarker :: TreePos Full Block -> [Token] -> Maybe ([Token], [Token])
 matchMarker treepos line = do
   let block = label treepos
   case eltType block of
@@ -164,13 +164,13 @@ matchMarker treepos line = do
        BlockQuote    -> removeBlockQuoteStart line
        List          -> return ([], line)
        Item          -> undefined  -- TODO
-       Paragraph     -> do
+       Paragraph{}   -> do
          guard (not (isBlank line))
          return ([], line)
        BlankLines    -> do
          guard (isBlank line)
          return ([], line)
-       Heading       -> mzero
+       Heading{}     -> mzero
        CodeBlock { codeIndented = indented }
          | indented  -> case gobbleSpaces 4 line of
                              Nothing  -> mzero
@@ -227,7 +227,7 @@ isBlankTok (Token _ t) =
        TEndline _ -> True
        _          -> False
 
-ancestors :: BlockTree -> [BlockTree]
+ancestors :: TreePos Full Block -> [TreePos Full Block]
 ancestors treepos =
   case parent treepos of
         Nothing   -> [treepos]

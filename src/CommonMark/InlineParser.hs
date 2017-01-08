@@ -1,4 +1,4 @@
-module CommonMark.InlineParser ( parseInlines ) where
+module CommonMark.InlineParser ( parseInlines, emptyInlines ) where
 import CommonMark.Types
 import Data.Text (Text)
 import qualified Data.Text as Text
@@ -407,4 +407,7 @@ pAutolink = do
   pSym '>'
   eof
   return res
+
+emptyInlines :: Tree Inline
+emptyInlines = Node (Elt Inlines [] []) []
 

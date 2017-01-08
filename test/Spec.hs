@@ -89,10 +89,10 @@ main = defaultMain $ testGroup "CommonMark tests" $
     , testGroup "parseBlocks tests" [
         testCase "simple two-line paragraph" $
           parseBlocks (tokenize "a\nb") @?=
-          Node {rootLabel = Elt {eltType = Document, delimToks = [], contentToks = []}, subForest = [Node {rootLabel = Elt {eltType = Paragraph, delimToks = [], contentToks = [Token (1,0) (TStr "a"),Token (1,1) (TEndline LF),Token (2,0) (TStr "b")]}, subForest = []}]}
+          Node {rootLabel = Elt {eltType = Document, delimToks = [], contentToks = []}, subForest = [Node {rootLabel = Elt {eltType = Paragraph{ paragraphContents = emptyInlines }, delimToks = [], contentToks = [Token (1,0) (TStr "a"),Token (1,1) (TEndline LF),Token (2,0) (TStr "b")]}, subForest = []}]}
       , testCase "paragraphs separated by blank line" $
           parseBlocks (tokenize "a\n\nb") @?=
-          Node {rootLabel = Elt {eltType = Document, delimToks = [], contentToks = []}, subForest = [Node {rootLabel = Elt {eltType = Paragraph, delimToks = [], contentToks = [Token (1,0) (TStr "a"),Token (1,1) (TEndline LF)]}, subForest = []}, Node {rootLabel = Elt {eltType = BlankLines, delimToks = [], contentToks = [Token (2,0) (TEndline LF)]}, subForest = []}, Node {rootLabel = Elt {eltType = Paragraph, delimToks = [], contentToks = [Token (3,0) (TStr "b")]}, subForest = []}]}
+          Node {rootLabel = Elt {eltType = Document, delimToks = [], contentToks = []}, subForest = [Node {rootLabel = Elt {eltType = Paragraph { paragraphContents = emptyInlines }, delimToks = [], contentToks = [Token (1,0) (TStr "a"),Token (1,1) (TEndline LF)]}, subForest = []}, Node {rootLabel = Elt {eltType = BlankLines, delimToks = [], contentToks = [Token (2,0) (TEndline LF)]}, subForest = []}, Node {rootLabel = Elt {eltType = Paragraph{ paragraphContents = emptyInlines }, delimToks = [], contentToks = [Token (3,0) (TStr "b")]}, subForest = []}]}
       ]
     , testGroup "parseInlines tests" [
         testCase "code span with backslash + symbol" $
@@ -115,7 +115,7 @@ main = defaultMain $ testGroup "CommonMark tests" $
     ]
 
 t1 :: Tree Block
-t1 = Node (Elt Paragraph [] []) []
+t1 = Node (Elt Paragraph{ paragraphContents = emptyInlines } [] []) []
 
 t2 :: Tree Block
 t2 = Node (Elt BlockQuote [] []) [t1]

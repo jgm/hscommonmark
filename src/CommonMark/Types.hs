@@ -82,14 +82,15 @@ data BlockType = Document
                | BlockQuote
                | List
                | Item
-               | Paragraph
-               | Heading
+               | Paragraph { paragraphContents :: Tree Inline }
+               | Heading  { headingLevel :: Int
+                          , headingContents :: Tree Inline }
                | CodeBlock { codeIndented   :: Bool
                            , codeInfoString :: Text }
                | HtmlBlock
                | ThematicBreak
                | BlankLines
-  deriving (Show, Read, Eq, Ord, Typeable, Data, Generic)
+  deriving (Show, Read, Eq, Typeable, Data, Generic)
 
 data InlineType = Inlines
                 | Txt
@@ -110,7 +111,6 @@ type Block = Elt BlockType
 type Inline = Elt InlineType
 
 type BlockTree = TreePos Full Block
-type InlineTree = TreePos Full Inline
 
 type Label = CI Text
 
