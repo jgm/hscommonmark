@@ -6,6 +6,7 @@ module CommonMark.Types (
   , tokenToText
   , Pos
   , Tok(..)
+  , EmphChar(..)
   , EndlineType(..)
   , Line
   , BlockTree
@@ -39,9 +40,13 @@ data Tok = TStr Text
          | TEntity Text
          | TEscaped Char
          | TBackticks Int
-         | TAsterisks Int Int  -- first is orig length, second adjusted
-         | TUnderscores Int Int -- first is orig length, second adjusted
+         | TEmphChars EmphChar Int Int
          | TEndline EndlineType
+  deriving (Show, Read, Eq, Ord, Typeable, Data, Generic)
+
+data EmphChar =
+       Asterisk
+     | Underscore
   deriving (Show, Read, Eq, Ord, Typeable, Data, Generic)
 
 data EndlineType = CR | LF | CRLF
@@ -59,8 +64,8 @@ tokenToText (Token _ t) =
        TEntity s -> s
        TEscaped c -> Text.pack ['\\',c]
        TBackticks i -> Text.replicate i "`"
-       TAsterisks _ i -> Text.replicate i "*"
-       TUnderscores _ i -> Text.replicate i "_"
+       TEmphChars Asterisk _ i -> Text.replicate i "*"
+       TEmphChars Underscore _ i -> Text.replicate i "_"
        TEndline LF -> Text.singleton '\n'
        TEndline CR -> Text.singleton '\r'
        TEndline CRLF -> Text.pack "\r\n"

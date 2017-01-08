@@ -34,11 +34,11 @@ getToken curline curcol inp =
             '\t' -> let increment = 4 - curcol `mod` 4
                     in  (Token pos TTab, rest, curline, curcol + increment)
             '*' ->  let n = maybe len id (Text.findIndex (/='*') rest)
-                    in  (Token pos (TAsterisks (n+1) (n+1)), Text.drop n rest,
-                           curline, curcol + n + 1)
+                    in  (Token pos (TEmphChars Asterisk (n+1) (n+1)),
+                          Text.drop n rest, curline, curcol + n + 1)
             '_' ->  let n = maybe len id (Text.findIndex (/='_') rest)
-                    in  (Token pos (TUnderscores (n+1) (n+1)), Text.drop n rest,
-                          curline, curcol + n + 1)
+                    in  (Token pos (TEmphChars Underscore (n+1) (n+1)),
+                          Text.drop n rest, curline, curcol + n + 1)
             '`' ->  let n = maybe len id (Text.findIndex (/='`') rest)
                     in  (Token pos (TBackticks (n+1)), Text.drop n rest,
                           curline, curcol + n + 1)
