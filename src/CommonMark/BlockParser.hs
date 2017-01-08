@@ -232,10 +232,13 @@ isBlankTok (Token _ t) =
        TEndline _ -> True
        _          -> False
 
+-- including oneself
 ancestors :: TreePos Full Block -> [TreePos Full Block]
-ancestors treepos =
-  case parent treepos of
-        Nothing   -> [treepos]
-        Just tp   -> tp : ancestors tp
+ancestors treepos = treepos : properAncestors treepos
 
+properAncestors :: TreePos Full Block -> [TreePos Full Block]
+properAncestors treepos =
+  case parent treepos of
+        Nothing   -> []
+        Just tp   -> tp : properAncestors tp
 
