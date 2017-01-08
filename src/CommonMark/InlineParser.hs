@@ -12,7 +12,7 @@ import Data.List (foldl')
 import Text.HTML.TagSoup (Tag(..), parseTags)
 import Text.Parsec hiding (label)
 import Text.Parsec.Pos (newPos)
-import Data.Char (isAscii, isLetter, isSpace, isAlphaNum)
+import Data.Char (isAscii, isLetter, isSpace, isAlphaNum, isPunctuation)
 
 import Debug.Trace
 
@@ -139,20 +139,52 @@ findMatchingOpener tp = gofind (`canOpenFor` tp) tp
                      else gofind pred pr
                 Nothing -> Nothing
 
-isLeftFlanking :: TreePos Full Inline -> Bool
-isLeftFlanking tp = True -- TODO
+flankingness :: TreePos Full Inline -> (Bool, Bool)
+flankingness tp =
+  let nexttoks = (contentToks . label) <$> next tp
+      prevtoks = (reverse . contentToks . label) <$> prev tp
+      followedByUnicodeWhitespace = startsWithUnicodeWhitespace nexttoks
+      followedByPunctuation = startsWithPunctuation nexttoks
+      precededByUnicodeWhitespace = startsWithUnicodeWhitespace prevtoks
+      precededByPunctuation = startsWithPunctuation prevtoks
+      leftFlanking = not followedByUnicodeWhitespace &&
+        (not followedByPunctuation ||
+          (precededByUnicodeWhitespace || precededByPunctuation))
+      rightFlanking = not precededByUnicodeWhitespace &&
+        (not precededByPunctuation ||
+          (followedByUnicodeWhitespace || followedByPunctuation))
+  in  (leftFlanking, rightFlanking)
 
-isRightFlanking :: TreePos Full Inline -> Bool
-isRightFlanking tp = True -- TODO
+startsWithUnicodeWhitespace :: Maybe [Token] -> Bool
+startsWithUnicodeWhitespace mbt =
+  case mbt of
+       Just (Token _ TSpace : _) -> True
+       Just (Token _ TTab : _) -> True
+       Just (Token _ (TEndline _) : _) -> True
+       Just (Token _ (TSym c) : _) -> isSpace c
+       Just _ -> False
+       Nothing -> True
+
+startsWithPunctuation :: Maybe [Token] -> Bool
+startsWithPunctuation mbt =
+  case mbt of
+       Just (Token _ (TSym c) : _) -> isPunctuation c
+       Just (Token _ (TBackticks _) : _) -> True
+       Just (Token _ (TEmphChars _ _ _) : _) -> True
+       Just (Token _ (TEscaped _) : _) -> True
+       _ -> False
+
 
 canOpenFor :: TreePos Full Inline -> TreePos Full Inline -> Bool
 canOpenFor op cl =
-  case (contentToks (label cl), contentToks (label op)) of
+  let (opLeftFlanking, opRightFlanking) = flankingness op
+      (clLeftFlanking, clRightFlanking) = flankingness cl
+  in case (contentToks (label cl), contentToks (label op)) of
        ([Token pos1 (TEmphChars ec1 o1 n1)],
         [Token pos2 (TEmphChars ec2 o2 n2)])   ->
           ec1 == ec2 &&
-          isLeftFlanking op && isRightFlanking cl
-          && if isLeftFlanking cl || isRightFlanking op
+          opLeftFlanking && clRightFlanking
+          && if clLeftFlanking || opRightFlanking
                 then (o1 + o2) `mod` 3 /= 0
                 else  True
         -- TODO diffs btw asterisk and underscore
