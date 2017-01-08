@@ -39,8 +39,8 @@ data Tok = TStr Text
          | TEntity Text
          | TEscaped Char
          | TBackticks Int
-         | TAsterisks Int
-         | TUnderscores Int
+         | TAsterisks Int Int  -- first is orig length, second adjusted
+         | TUnderscores Int Int -- first is orig length, second adjusted
          | TEndline EndlineType
   deriving (Show, Read, Eq, Ord, Typeable, Data, Generic)
 
@@ -59,8 +59,8 @@ tokenToText (Token _ t) =
        TEntity s -> s
        TEscaped c -> Text.pack ['\\',c]
        TBackticks i -> Text.replicate i "`"
-       TAsterisks i -> Text.replicate i "*"
-       TUnderscores i -> Text.replicate i "_"
+       TAsterisks _ i -> Text.replicate i "*"
+       TUnderscores _ i -> Text.replicate i "_"
        TEndline LF -> Text.singleton '\n'
        TEndline CR -> Text.singleton '\r'
        TEndline CRLF -> Text.pack "\r\n"
