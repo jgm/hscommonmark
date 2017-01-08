@@ -53,8 +53,7 @@ resolveEmphasis tp =
               let cltoks = contentToks (label tp)
               let getTokInfo ts =
                    case ts of
-                        [Token pos (TEmphChars Asterisk _ n)] -> (n, pos)
-                        [Token pos (TEmphChars Underscore _ n)] -> (n, pos)
+                        [Token pos (TEmphChars _ _ n)] -> (n, pos)
                         _ -> impossible
               let (opchars, oppos) = getTokInfo optoks
               let (clchars, clpos) = getTokInfo cltoks
@@ -66,26 +65,17 @@ resolveEmphasis tp =
               let numchars = if elttype == Strong then 2 else 1
               let opdelims =
                    case optoks of
-                        [Token (l,c) (TEmphChars Asterisk o n)]
+                        [Token (l,c) (TEmphChars ec o n)]
                           | n > numchars ->
                             [Token (l, c + n - numchars)
-                              (TEmphChars Asterisk o numchars)]
-                          | otherwise -> optoks
-                        [Token (l,c) (TEmphChars Underscore o n)]
-                          | n > numchars ->
-                            [Token (l, c + n - numchars)
-                               (TEmphChars Underscore o numchars)]
+                              (TEmphChars ec o numchars)]
                           | otherwise -> optoks
                         _ -> impossible
               let cldelims =
                    case cltoks of
-                        [Token (l,c) (TEmphChars Asterisk o n)]
+                        [Token (l,c) (TEmphChars ec o n)]
                           | n > numchars ->
-                              [Token (l, c) (TEmphChars Asterisk o numchars)]
-                          | otherwise -> cltoks
-                        [Token (l,c) (TEmphChars Underscore o n)]
-                          | n > numchars ->
-                             [Token (l, c) (TEmphChars Underscore o numchars)]
+                              [Token (l, c) (TEmphChars ec o numchars)]
                           | otherwise -> cltoks
                         _ -> impossible
 
@@ -105,15 +95,10 @@ shrinkLeft numchars tp =
   case prevTree tp of
        Just t ->
          case contentToks (label t) of
-              [Token (l, c) (TEmphChars Asterisk o n)]
+              [Token (l, c) (TEmphChars ec o n)]
                 | n > numchars -> nextSpace $ modifyLabel (\elt ->
-                          elt{ contentToks =
-                              [Token (l, c) (TEmphChars Asterisk o (n - numchars))] }) t
-                | otherwise -> delete t
-              [Token (l, c) (TEmphChars Underscore o n)]
-                | n > numchars -> nextSpace $ modifyLabel (\elt ->
-                          elt{ contentToks =
-                              [Token (l, c) (TEmphChars Underscore o (n - numchars))]}) t
+                        elt{ contentToks =
+                           [Token (l, c) (TEmphChars ec o (n - numchars))] }) t
                 | otherwise -> delete t
               _ -> tp
        Nothing -> tp
@@ -123,16 +108,10 @@ shrinkRight numchars tp =
   case nextTree tp of
        Just t ->
          case contentToks (label t) of
-              [Token (l, c) (TEmphChars Asterisk o n)]
+              [Token (l, c) (TEmphChars ec o n)]
                 | n > numchars -> prevSpace $ modifyLabel (\elt ->
                           elt{ contentToks = [Token (l, c + numchars)
-                                (TEmphChars Asterisk o (n - numchars))] }) t
-                | otherwise -> delete t
-              [Token (l, c) (TEmphChars Underscore o n)]
-                | n > numchars -> prevSpace $ modifyLabel (\elt ->
-                          elt{ contentToks =
-                                [Token (l, c + numchars)
-                                (TEmphChars Underscore o (n - numchars))] }) t
+                                (TEmphChars ec o (n - numchars))] }) t
                 | otherwise -> delete t
               _ -> tp
        Nothing -> tp
@@ -169,16 +148,14 @@ isRightFlanking tp = True -- TODO
 canOpenFor :: TreePos Full Inline -> TreePos Full Inline -> Bool
 canOpenFor op cl =
   case (contentToks (label cl), contentToks (label op)) of
-       ([Token pos1 (TEmphChars Asterisk o1 n1)],
-        [Token pos2 (TEmphChars Asterisk o2 n2)])   ->
+       ([Token pos1 (TEmphChars ec1 o1 n1)],
+        [Token pos2 (TEmphChars ec2 o2 n2)])   ->
+          ec1 == ec2 &&
           isLeftFlanking op && isRightFlanking cl
           && if isLeftFlanking cl || isRightFlanking op
                 then (o1 + o2) `mod` 3 /= 0
                 else  True
-        -- TODO we also need to check the rule of 3, and
-        -- flankingness, etc.  This is just to get started.
-       ([Token pos1 (TEmphChars Underscore o1 n1)],
-        [Token pos2 (TEmphChars Underscore o2 n2)]) -> True
+        -- TODO diffs btw asterisk and underscore
        _ -> False
 
 canCloseEmphasis :: TreePos Full Inline -> Bool
@@ -186,11 +163,7 @@ canCloseEmphasis tp =
   case label tp of
        Elt{ eltType = Txt
           , delimToks = dts
-          , contentToks = [Token pos (TEmphChars Asterisk o n)] } -> True
-          -- TODO check all th econditions
-       Elt{ eltType = Txt
-          , delimToks = dts
-          , contentToks = [Token pos (TEmphChars Underscore o n)] } -> True
+          , contentToks = [Token pos (TEmphChars ec o n)] } -> True
           -- TODO check all th econditions
        _ -> False
 
