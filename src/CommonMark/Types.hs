@@ -18,6 +18,7 @@ module CommonMark.Types (
   , InlineType(..)
   , Label
   , RefMap
+  , module Data.Tree
   ) where
 
 import Data.Tree.Zipper
