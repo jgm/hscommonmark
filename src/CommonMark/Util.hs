@@ -1,5 +1,5 @@
 {-# LANGUAGE RankNTypes #-}
-module CommonMark.Util ( addChild, showTreePos )
+module CommonMark.Util ( addChild, showTree )
 where
 
 import CommonMark.Types
@@ -11,8 +11,8 @@ addChild :: Tree a -> TreePos Full a -> TreePos Full a
 addChild new treepos =
   insert new (Data.Tree.Zipper.last (children treepos))
 
-showTreePos :: forall a . (Show a) => TreePos Full (Elt a) -> IO ()
-showTreePos = putStrLn . drawTree .
+showTree :: forall a . (Show a) => Tree (Elt a) -> IO ()
+showTree = putStrLn . drawTree .
   fmap (\(Elt tt _ ts) ->
-    show tt ++ " " ++ show (mconcat (map tokenToText ts))) . toTree
+    show tt ++ " " ++ show (mconcat (map tokenToText ts)))
 
