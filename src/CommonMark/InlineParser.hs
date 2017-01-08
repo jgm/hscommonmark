@@ -316,7 +316,7 @@ tokensToNodes (t@(Token pos (TSym '<')) : ts) = do
                                         , linkTitle =  mempty } [t, gt]
                                     bodytoks
                  Nothing ->
-                   case parseTags (mconcat (map tokenToText tagtoks)) of
+                   case parseTags (tokensToText tagtoks) of
                       (TagOpen _ _:_) -> mknode HtmlInline [] tagtoks
                       (TagClose _:_) -> mknode HtmlInline [] tagtoks
                       (TagComment _:_) -> mknode HtmlInline [] tagtoks

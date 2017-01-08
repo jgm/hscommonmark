@@ -5,6 +5,7 @@
 module CommonMark.Types (
     Token(..)
   , tokenToText
+  , tokensToText
   , Pos
   , Tok(..)
   , EmphChar(..)
@@ -72,6 +73,9 @@ tokenToText (Token _ t) =
        TEndline LF -> Text.singleton '\n'
        TEndline CR -> Text.singleton '\r'
        TEndline CRLF -> Text.pack "\r\n"
+
+tokensToText :: [Token] -> Text
+tokensToText = mconcat . map tokenToText
 
 type Line = [Token]
 

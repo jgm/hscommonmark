@@ -12,14 +12,17 @@ parseCommonMark :: Text -> Tree Block
 parseCommonMark = resolveInlines mempty . parseBlocks . tokenize
 
 resolveInlines :: RefMap -> Tree Block -> Tree Block
-resolveInlines refmap (Node elt ns) = Node
-  elt{ eltType =
+resolveInlines refmap (Node elt ns) =
+  let contents = parseInlines refmap (removeFinalEndline (contentToks elt))
+  in  Node elt{ eltType =
         (case eltType elt of
-              et@(Paragraph{}) -> et{
-                  paragraphContents = parseInlines refmap (contentToks elt)
-                }
-              et@(Heading{}) -> et{
-                  headingContents = parseInlines refmap (contentToks elt)
-                }
+              et@(Paragraph{}) -> et{ paragraphContents = contents }
+              et@(Heading{}) -> et{ headingContents = contents }
               et           -> et) }
-   (map (resolveInlines refmap) ns)
+        (map (resolveInlines refmap) ns)
+
+removeFinalEndline :: [Token] -> [Token]
+removeFinalEndline ts =
+  case reverse ts of
+       (Token _ (TEndline _) : rest) -> init ts
+       _ -> ts
