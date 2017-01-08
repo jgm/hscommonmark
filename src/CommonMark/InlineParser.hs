@@ -184,19 +184,30 @@ canOpenFor op cl =
         [Token pos2 (TEmphChars ec2 o2 n2)])   ->
           ec1 == ec2 &&
           opLeftFlanking && clRightFlanking
+          && case ec1 of
+                  Underscore -> not opRightFlanking ||
+                                  startsWithPunctuation
+                                   ((reverse . contentToks . label)
+                                     <$> prev op)
+                  Asterisk -> True
           && if clLeftFlanking || opRightFlanking
                 then (o1 + o2) `mod` 3 /= 0
                 else  True
-        -- TODO diffs btw asterisk and underscore
        _ -> False
 
 canCloseEmphasis :: TreePos Full Inline -> Bool
 canCloseEmphasis tp =
-  case label tp of
+  let (leftFlanking, rightFlanking) = flankingness tp
+  in case label tp of
        Elt{ eltType = Txt
           , delimToks = dts
-          , contentToks = [Token pos (TEmphChars ec o n)] } -> True
-          -- TODO check all th econditions
+          , contentToks = [Token pos (TEmphChars ec o n)] } ->
+            rightFlanking &&
+            case ec of
+                 Asterisk -> True
+                 Underscore -> not leftFlanking ||
+                               startsWithPunctuation
+                                 ((contentToks . label) <$> next tp)
        _ -> False
 
 -- the idea here is that we'll start with startingTree,
