@@ -11,7 +11,6 @@ module CommonMark.BlockParser (
 where
 import CommonMark.Types
 import CommonMark.Lexer (tokenize)
-import CommonMark.InlineParser (emptyInlines)
 import Control.Monad
 import Data.Tree.Zipper
 import Data.Tree
@@ -136,6 +135,9 @@ emptyParagraph = Node (Elt Paragraph{ paragraphContents = emptyInlines }
 emptyBlankLines :: Tree Block
 emptyBlankLines = Node (Elt BlankLines [] []) []
 
+emptyInlines :: Tree Inline
+emptyInlines = Node (Elt Inlines [] []) []
+
 -- | Analyze line and return treepos of last matched
 -- container node plus the remainder of the line,
 -- after matched delimiters.
@@ -232,4 +234,5 @@ ancestors treepos =
   case parent treepos of
         Nothing   -> [treepos]
         Just tp   -> tp : ancestors tp
+
 

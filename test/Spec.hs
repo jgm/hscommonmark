@@ -126,3 +126,6 @@ t3 = Node (Elt BlockQuote [] []) [t2]
 t4 :: Tree Block
 t4 = Node (Elt Document [] []) [t3]
 
+emptyInlines :: Tree Inline
+emptyInlines = Node (Elt Inlines [] []) []
+
