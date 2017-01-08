@@ -134,14 +134,19 @@ eatNodesBetween op cl = go ([], prevSpace cl)
 findMatchingOpener :: TreePos Full Inline
                    -> InlineM (Maybe (TreePos Full Inline))
 findMatchingOpener tp = do
+  -- TODO look in state to see how far we've searched before for this kind of op
   gofind (`canOpenFor` tp) tp
    where gofind pred tp =
           case prev tp of
                 Just pr ->
                   if pred pr
-                     then return $ Just pr
+                     then do
+                       -- TODO update state
+                       return $ Just pr
                      else gofind pred pr
-                Nothing -> return Nothing
+                Nothing -> do
+                       -- TODO update state
+                       return Nothing
 
 flankingness :: TreePos Full Inline -> (Bool, Bool)
 flankingness tp =
@@ -227,7 +232,14 @@ parseInlines refmap ts =
           >=> traverseTreePos resolveEmphasis)
           ts)
           InlineConfig{ refMap = refmap }
-          InlineState{ noGreaterThan = False }
+          InlineState{ noGreaterThan = False
+                     , openerSearchPos = OpenerSearchPos{
+                           asteriskCloser0  = (0,0)
+                         , asteriskCloser1  = (0,0)
+                         , asteriskCloser2  = (0,0)
+                         , underscoreCloser = (0,0)
+                         , bracketCloser    = (0,0)
+                     }}
      where toRootNode = fromTree .
                         (Node Elt{
                              eltType = Inlines
@@ -239,8 +251,17 @@ data InlineConfig = InlineConfig{
         } deriving (Show)
 
 data InlineState = InlineState{
-          noGreaterThan :: Bool
+          noGreaterThan   :: Bool
+        , openerSearchPos :: OpenerSearchPos
         } deriving (Show)
+
+data OpenerSearchPos = OpenerSearchPos{
+         asteriskCloser0  :: Pos
+       , asteriskCloser1  :: Pos
+       , asteriskCloser2  :: Pos
+       , underscoreCloser :: Pos
+       , bracketCloser    :: Pos
+       } deriving (Show)
 
 type InlineM = RWS InlineConfig () InlineState
 
