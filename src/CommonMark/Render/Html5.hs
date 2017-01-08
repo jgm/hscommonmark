@@ -7,7 +7,7 @@ import qualified Data.Text.Lazy as LazyText
 import Debug.Trace
 
 renderHtml5 :: Tree Block -> LazyText.Text
-renderHtml5 = renderText . blockToHtml5 . traceShowId
+renderHtml5 = renderText . blockToHtml5
 
 blocksToHtml5 :: [Tree Block] -> Html ()
 blocksToHtml5 [] = return ()

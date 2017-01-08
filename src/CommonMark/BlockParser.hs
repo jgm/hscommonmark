@@ -106,9 +106,12 @@ matchNewBlock ts =
        Just rest -> return ([], rest, emptyCodeBlock)
        Nothing   ->
          case dropWhile isSpaceToken ts of
-              (t@(Token pos (TSym '>')) : xs) -> do
+              (t@(Token (l,c) (TSym '>')) : xs) -> do
                  let delim = maybe [t] (t:) (gobbleSpaces 1 xs)
-                 let rest' = drop (length delim - 1) xs
+                 let rest' = maybe xs id $ gobbleSpaces 1 xs
+                 let delim = if rest' == xs
+                                then [t]
+                                else [t, Token (l, c+1) TSpace]
                  return (delim, rest', emptyBlockQuote)
               _ -> mzero
 

@@ -81,6 +81,7 @@ scanEntity t =
                      case Text.span isDigit rest' of
                           (es, rest''') -> Just (Text.singleton '#' <> es,
                                                  rest''')
+                  | otherwise -> Nothing
                 Nothing -> Nothing
          _ ->
            case Text.span isAlpha t of
