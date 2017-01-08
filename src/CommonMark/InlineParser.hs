@@ -245,13 +245,14 @@ canCloseEmphasis tp =
 -- and analyze the tokens in precedence order,
 -- breaking them into subtrees and assigning delimToks
 -- when appropriate.
-parseInlines :: RefMap -> [Token] -> TreePos Full Inline
+parseInlines :: RefMap -> [Token] -> [Tree Inline]
 parseInlines refmap ts =
   fst $ evalRWS
           (  (tokensToNodes
           >=> return . toRootNode
           >=> traverseTreePos resolveLinksImages
-          >=> traverseTreePos resolveEmphasis)
+          >=> traverseTreePos resolveEmphasis
+          >=> return . forest . children)
           ts)
           InlineConfig{ refMap = refmap }
           InlineState{ noGreaterThan = False

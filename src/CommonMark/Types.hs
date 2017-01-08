@@ -84,9 +84,9 @@ data BlockType = Document
                | BlockQuote
                | List
                | Item
-               | Paragraph { paragraphContents :: Tree Inline }
+               | Paragraph { paragraphContents :: [Tree Inline] }
                | Heading  { headingLevel :: Int
-                          , headingContents :: Tree Inline }
+                          , headingContents :: [Tree Inline] }
                | CodeBlock { codeIndented   :: Bool
                            , codeInfoString :: Text }
                | HtmlBlock

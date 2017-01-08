@@ -129,14 +129,10 @@ emptyBlockQuote :: Tree Block
 emptyBlockQuote = Node (Elt BlockQuote [] []) []
 
 emptyParagraph :: Tree Block
-emptyParagraph = Node (Elt Paragraph{ paragraphContents = emptyInlines }
-   [] []) []
+emptyParagraph = Node (Elt Paragraph{ paragraphContents = [] } [] []) []
 
 emptyBlankLines :: Tree Block
 emptyBlankLines = Node (Elt BlankLines [] []) []
-
-emptyInlines :: Tree Inline
-emptyInlines = Node (Elt Inlines [] []) []
 
 -- | Analyze line and return treepos of last matched
 -- container node plus the remainder of the line,

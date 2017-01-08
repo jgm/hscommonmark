@@ -89,33 +89,33 @@ main = defaultMain $ testGroup "CommonMark tests" $
     , testGroup "parseBlocks tests" [
         testCase "simple two-line paragraph" $
           parseBlocks (tokenize "a\nb") @?=
-          Node {rootLabel = Elt {eltType = Document, delimToks = [], contentToks = []}, subForest = [Node {rootLabel = Elt {eltType = Paragraph{ paragraphContents = emptyInlines }, delimToks = [], contentToks = [Token (1,0) (TStr "a"),Token (1,1) (TEndline LF),Token (2,0) (TStr "b")]}, subForest = []}]}
+          Node {rootLabel = Elt {eltType = Document, delimToks = [], contentToks = []}, subForest = [Node {rootLabel = Elt {eltType = Paragraph{ paragraphContents = []}, delimToks = [], contentToks = [Token (1,0) (TStr "a"),Token (1,1) (TEndline LF),Token (2,0) (TStr "b")]}, subForest = []}]}
       , testCase "paragraphs separated by blank line" $
           parseBlocks (tokenize "a\n\nb") @?=
-          Node {rootLabel = Elt {eltType = Document, delimToks = [], contentToks = []}, subForest = [Node {rootLabel = Elt {eltType = Paragraph { paragraphContents = emptyInlines }, delimToks = [], contentToks = [Token (1,0) (TStr "a"),Token (1,1) (TEndline LF)]}, subForest = []}, Node {rootLabel = Elt {eltType = BlankLines, delimToks = [], contentToks = [Token (2,0) (TEndline LF)]}, subForest = []}, Node {rootLabel = Elt {eltType = Paragraph{ paragraphContents = emptyInlines }, delimToks = [], contentToks = [Token (3,0) (TStr "b")]}, subForest = []}]}
+          Node {rootLabel = Elt {eltType = Document, delimToks = [], contentToks = []}, subForest = [Node {rootLabel = Elt {eltType = Paragraph { paragraphContents = [] }, delimToks = [], contentToks = [Token (1,0) (TStr "a"),Token (1,1) (TEndline LF)]}, subForest = []}, Node {rootLabel = Elt {eltType = BlankLines, delimToks = [], contentToks = [Token (2,0) (TEndline LF)]}, subForest = []}, Node {rootLabel = Elt {eltType = Paragraph{ paragraphContents = [] }, delimToks = [], contentToks = [Token (3,0) (TStr "b")]}, subForest = []}]}
       ]
     , testGroup "parseInlines tests" [
         testCase "code span with backslash + symbol" $
-          forest (children (parseInlines mempty (tokenize "``h\\*``")))
+          parseInlines mempty (tokenize "``h\\*``")
           @?=
           [Node {rootLabel = Elt {eltType = Code, delimToks = [Token (1,0) (TBackticks 2),Token (1,5) (TBackticks 2)], contentToks = [Token (1,2) (TStr "h"),Token (1,3) (TStr "\\*")]}, subForest = []}]
       , testCase "code span with final backslash" $
-          forest (children (parseInlines mempty (tokenize "``hi\\``")))
+          parseInlines mempty (tokenize "``hi\\``")
           @?=
           [Node {rootLabel = Elt {eltType = Code, delimToks = [Token (1,0) (TBackticks 2),Token (1,5) (TBackticks 2)], contentToks = [Token (1,2) (TStr "hi"),Token (1,4) (TSym '\\')]}, subForest = []}]
       , testCase "3 blanks + newline = linebreak" $
-          forest (children (parseInlines mempty (tokenize "hi   \nthere")))
+          parseInlines mempty (tokenize "hi   \nthere")
           @?=
           [Node {rootLabel = Elt {eltType = Txt, delimToks = [], contentToks = [Token (1,0) (TStr "hi")]}, subForest = []},Node {rootLabel = Elt {eltType = Linebreak, delimToks = [], contentToks = [Token (1,2) TSpace,Token (1,3) TSpace,Token (1,4) TSpace,Token (1,5) (TEndline LF)]}, subForest = []},Node {rootLabel = Elt {eltType = Txt, delimToks = [], contentToks = [Token (2,0) (TStr "there")]}, subForest = []}]
       , testCase "backslash + newline = linebreak" $
-          forest (children (parseInlines mempty (tokenize "hi\\\nthere")))
+          parseInlines mempty (tokenize "hi\\\nthere")
           @?=
           [Node {rootLabel = Elt {eltType = Txt, delimToks = [], contentToks = [Token (1,0) (TStr "hi")]}, subForest = []},Node {rootLabel = Elt {eltType = Linebreak, delimToks = [Token (1,2) (TSym '\\')], contentToks = [Token (1,3) (TEndline LF)]}, subForest = []},Node {rootLabel = Elt {eltType = Txt, delimToks = [], contentToks = [Token (2,0) (TStr "there")]}, subForest = []}]
       ]
     ]
 
 t1 :: Tree Block
-t1 = Node (Elt Paragraph{ paragraphContents = emptyInlines } [] []) []
+t1 = Node (Elt Paragraph{ paragraphContents = [] } [] []) []
 
 t2 :: Tree Block
 t2 = Node (Elt BlockQuote [] []) [t1]
@@ -125,7 +125,4 @@ t3 = Node (Elt BlockQuote [] []) [t2]
 
 t4 :: Tree Block
 t4 = Node (Elt Document [] []) [t3]
-
-emptyInlines :: Tree Inline
-emptyInlines = Node (Elt Inlines [] []) []
 
