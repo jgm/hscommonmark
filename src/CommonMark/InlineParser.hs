@@ -22,7 +22,7 @@ import Debug.Trace
 -- [x] check div 3 rule
 -- [x] keep track in state of how far you've looked for openers
 -- [ ] implement resolveLinksImages
--- [ ] email autolinks (they don't work yet)
+-- [x] email autolinks
 --
 traverseTreePos :: Monad m => (TreePos Full a -> m (TreePos Full a))
                 -> TreePos Full a -> m (TreePos Full a)
@@ -412,7 +412,7 @@ pEmail = do
   pSym (== '@')
   p <- pDompart
   ps <- many1 (pSym (== '.') >> pDompart)
-  return $ name <> Text.pack "@" <>
+  return $ Text.pack "mailto:" <> name <> Text.pack "@" <>
             mconcat (intersperse (Text.pack ".") (p:ps))
 
 pDompart :: Parser Text
@@ -426,7 +426,7 @@ pDompart = do
 pAutolink :: Parser Text
 pAutolink = do
   pSym (== '<')
-  res <- pAbsoluteURI <|> pEmail
+  res <- try pAbsoluteURI <|> pEmail
   pSym (== '>')
   eof
   return res
