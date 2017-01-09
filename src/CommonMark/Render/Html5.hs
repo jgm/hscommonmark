@@ -4,6 +4,7 @@ import Lucid
 import Lucid.Html5
 import Control.Monad
 import qualified Data.Text.Lazy as LazyText
+import qualified Data.Text as Text
 import Debug.Trace
 
 renderHtml5 :: Tree Block -> LazyText.Text
@@ -45,7 +46,7 @@ blockToHtml5 (Node elt ns) = do
                         _ -> p_) (inlineToHtml5 ils)
        CodeBlock{ codeIndented = indented
                 , codeInfoString = info } ->
-                pre_ (code_ (toHtml (tokensToText (contentToks elt))))
+                pre_ (code_ (literal elt))
        HtmlBlock -> toHtmlRaw (tokensToText (contentToks elt))
        ThematicBreak -> hr_ []
        BlankLines -> return ()
@@ -54,20 +55,22 @@ inlineToHtml5 :: Tree Inline -> Html ()
 inlineToHtml5 (Node elt ns) =
   case eltType elt of
        Inlines -> mapM_ inlineToHtml5 ns
-       Txt -> toHtml (tokensToText (contentToks elt))
+       Txt -> literal elt
        Space -> toHtml (" " :: String)
        Softbreak -> nl
        Linebreak -> br_ []
-       Code -> code_ (toHtml (tokensToText (contentToks elt)))
+       Code -> code_ (literal elt)
        HtmlInline -> toHtmlRaw (tokensToText (contentToks elt))
        Emph -> em_ (mapM_ inlineToHtml5 ns)
        Strong -> strong_ (mapM_ inlineToHtml5 ns)
        Link{ linkDestination = dest
            , linkTitle = title } ->
-              a_ [href_ dest, title_ title] (mapM_ inlineToHtml5 ns)
+              a_ ([href_ dest] ++ [title_ title | not (Text.null title)])
+                 (literal elt)
        Image{ imageSource = src
              , imageTitle = title } ->
-                img_ [src_ src, title_ title,
-                      alt_ (tokensToText (contentToks elt))]
+                img_ ([src_ src, alt_ (tokensToText (contentToks elt))] ++
+                      [title_ title | not (Text.null title)])
 
-
+literal :: Elt a -> Html ()
+literal = toHtml . tokensToText . contentToks
