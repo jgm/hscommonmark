@@ -9,7 +9,7 @@ import Control.Monad.RWS
 import Data.Tree
 import Data.Tree.Zipper
 import qualified Data.IntMap as IntMap
-import Data.List (foldl')
+import Data.List (foldl', intersperse)
 import Text.HTML.TagSoup (Tag(..), parseTags)
 import Text.Parsec hiding (label)
 import Text.Parsec.Pos (newPos)
@@ -22,7 +22,7 @@ import Debug.Trace
 -- [x] check div 3 rule
 -- [x] keep track in state of how far you've looked for openers
 -- [ ] implement resolveLinksImages
--- [ ] email autolinks
+-- [ ] email autolinks (they don't work yet)
 --
 traverseTreePos :: Monad m => (TreePos Full a -> m (TreePos Full a))
                 -> TreePos Full a -> m (TreePos Full a)
@@ -369,11 +369,18 @@ pSatisfy pred =
   token (Text.unpack . tokenToText) (\(Token (l,c) _) -> newPos "source" l c)
      (\tok -> if pred tok then Just tok else Nothing)
 
-pSym :: Char -> Parser Token
-pSym c =
+pSym :: (Char -> Bool) -> Parser Token
+pSym pred =
   pSatisfy $ \tok -> case tok of
-                          Token _ (TSym d) | d == c -> True
+                          Token _ (TSym d) | pred d -> True
                           _ -> False
+
+pStr :: Parser Token
+pStr =
+  pSatisfy $ \tok -> case tok of
+                          Token _ (TStr _) -> True
+                          _ -> False
+
 
 pScheme :: Parser Text
 pScheme = do
@@ -390,7 +397,7 @@ pScheme = do
 pAbsoluteURI :: Parser Text
 pAbsoluteURI = do
   sch <- pScheme
-  pSym ':'
+  pSym (== ':')
   rest <- many (pSat (\s -> not (Text.any isSpace s) &&
                             not (Text.any (=='<') s) &&
                             not (Text.any (=='>') s)))
@@ -398,14 +405,29 @@ pAbsoluteURI = do
 
 pEmail :: Parser Text
 pEmail = do
-  mzero -- TODO
-  return mempty
+  name <- tokensToText <$> many1
+            (pStr <|> pSym (`elem`
+               ['.','!','#','$','%','&','\'','*','+',
+                '/','=','?','^','_','`','{','|','}','~','-']))
+  pSym (== '@')
+  p <- pDompart
+  ps <- many1 (pSym (== '.') >> pDompart)
+  return $ name <> Text.pack "@" <>
+            mconcat (intersperse (Text.pack ".") (p:ps))
+
+pDompart :: Parser Text
+pDompart = do
+  x <- pStr
+  xs <- many (pStr <|> pSym (== '-'))
+  let dompart = tokensToText (x:xs)
+  guard $ Text.length dompart <= 61
+  return dompart
 
 pAutolink :: Parser Text
 pAutolink = do
-  pSym '<'
+  pSym (== '<')
   res <- pAbsoluteURI <|> pEmail
-  pSym '>'
+  pSym (== '>')
   eof
   return res
 

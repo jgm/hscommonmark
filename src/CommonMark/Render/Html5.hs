@@ -17,16 +17,19 @@ blocksToHtml5 (x:xs) = do
              case eltType elt of
                 Document -> return ()
                 BlankLines -> return ()
-                _ -> toHtml "\n"
+                _ -> nl
              blockToHtml5 (Node elt ns)) xs
+
+nl :: Html ()
+nl = toHtml ("\n" :: String)
 
 blockToHtml5 :: Tree Block -> Html ()
 blockToHtml5 (Node elt ns) = do
   case eltType elt of
        Document -> blocksToHtml5 ns
-       BlockQuote -> blockquote_ (do toHtml "\n"
+       BlockQuote -> blockquote_ (do nl
                                      blocksToHtml5 ns
-                                     unless (null ns) (toHtml "\n"))
+                                     unless (null ns) nl)
        List -> ul_ (blocksToHtml5 ns)
        Item -> li_ (blocksToHtml5 ns)
        Paragraph{ paragraphContents = ils } -> p_ (inlineToHtml5 ils)
@@ -52,8 +55,8 @@ inlineToHtml5 (Node elt ns) =
   case eltType elt of
        Inlines -> mapM_ inlineToHtml5 ns
        Txt -> toHtml (tokensToText (contentToks elt))
-       Space -> toHtml " "
-       Softbreak -> toHtml "\n"
+       Space -> toHtml (" " :: String)
+       Softbreak -> nl
        Linebreak -> br_ []
        Code -> code_ (toHtml (tokensToText (contentToks elt)))
        HtmlInline -> toHtmlRaw (tokensToText (contentToks elt))
