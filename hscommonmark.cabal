@@ -21,6 +21,7 @@ library
                        CommonMark.BlockParser
                        CommonMark.InlineParser
                        CommonMark.Util
+                       CommonMark.Zipper
                        CommonMark.Lexer
                        CommonMark.Render.Html5
   if impl(ghc < 7.10)
@@ -31,7 +32,6 @@ library
                      , containers >= 0.5.9
                      , syb
                      , split
-                     , rosezipper
                      , tagsoup
                      , parsec
                      , mtl
@@ -63,7 +63,6 @@ test-suite hscommonmark-test
                      , tasty-quickcheck
                      , quickcheck-text
                      , text
-                     , rosezipper
                      , containers
   if impl(ghc < 7.10)
      hs-source-dirs:   prelude

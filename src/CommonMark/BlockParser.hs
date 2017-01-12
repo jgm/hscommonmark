@@ -12,7 +12,7 @@ where
 import CommonMark.Types
 import CommonMark.Lexer (tokenize)
 import Control.Monad
-import Data.Tree.Zipper
+import CommonMark.Zipper
 import Data.Tree
 import Data.Text (Text)
 import qualified Data.Text as Text
@@ -76,7 +76,7 @@ openNewBlocks treepos line =
 -- and return the child
 addChild :: Tree Block -> TreePos Full Block -> TreePos Full Block
 addChild newblock treepos =
-  insert newblock (Data.Tree.Zipper.last (children treepos))
+  insert newblock (CommonMark.Zipper.last (children treepos))
 
 addTokens :: TreePos Full Block -> Line -> TreePos Full Block
 addTokens treepos line =

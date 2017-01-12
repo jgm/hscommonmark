@@ -7,7 +7,7 @@ import Data.Monoid
 import Control.Monad
 import Control.Monad.RWS
 import Data.Tree
-import Data.Tree.Zipper
+import CommonMark.Zipper
 import qualified Data.IntMap as IntMap
 import Data.List (foldl', intersperse)
 import Text.HTML.TagSoup (Tag(..), parseTags)

@@ -22,7 +22,7 @@ module CommonMark.Types (
   , module Data.Tree
   ) where
 
-import Data.Tree.Zipper
+import CommonMark.Zipper
 import Data.Tree
 import Data.Functor.Classes (liftCompare)
 import Data.Text (Text)

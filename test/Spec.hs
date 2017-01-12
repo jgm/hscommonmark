@@ -8,7 +8,7 @@ import CommonMark.Types
 import CommonMark.BlockParser
 import CommonMark.InlineParser
 import Data.Tree
-import Data.Tree.Zipper
+import CommonMark.Zipper
 import qualified Data.Text as Text
 
 main :: IO ()
